@@ -2,38 +2,488 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>Custom Activity</title>
+  <title>WhatsApp Campaign Designer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; }
-    .row { margin-bottom: 12px; }
-    label { display:block; margin-bottom: 6px; font-weight:600;}
-    select, input { padding:8px; width: 320px; max-width: 100%; }
-    .actions { margin-top: 16px; display:flex; gap:8px; justify-content:flex-end; }
+    :root {
+      color-scheme: light;
+      --bg: #0b141a;
+      --card: #ffffff;
+      --muted: #64748b;
+      --accent: #25d366;
+      --accent-dark: #128c7e;
+      --border: rgba(148, 163, 184, 0.3);
+      --shadow: 0 30px 60px rgba(8, 15, 26, 0.25);
+      --radius-lg: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1f2933 0%, #0b141a 55%, #05080a 100%);
+      padding: clamp(20px, 4vw, 56px);
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .app-shell {
+      width: min(1080px, 100%);
+      background: var(--card);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .app-header {
+      padding: clamp(24px, 3vw, 32px) clamp(28px, 4vw, 40px) 0 clamp(28px, 4vw, 40px);
+    }
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-icon {
+      height: 56px;
+      width: 56px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      box-shadow: 0 16px 30px rgba(37, 211, 102, 0.35);
+    }
+
+    .header-icon svg {
+      height: 30px;
+      width: 30px;
+      fill: #f8fafc;
+    }
+
+    .header-title h1 {
+      margin: 0;
+      font-size: clamp(1.6rem, 2.4vw, 2rem);
+      color: #0f172a;
+    }
+
+    .header-title p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .panels {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: clamp(16px, 2.2vw, 24px);
+      padding: 0 clamp(28px, 4vw, 40px) clamp(28px, 4vw, 40px);
+    }
+
+    .panel {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: clamp(20px, 3vw, 28px);
+      background: #f8fafc;
+      position: relative;
+    }
+
+    .panel::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      pointer-events: none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.4);
+    }
+
+    .panel h2 {
+      margin: 0 0 18px;
+      font-size: 1.1rem;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .field-group:last-of-type {
+      margin-bottom: 0;
+    }
+
+    label {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 0.95rem;
+    }
+
+    input[type="text"],
+    input[type="datetime-local"],
+    select,
+    textarea {
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      line-height: 1.45;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background: #ffffff;
+      color: #0f172a;
+      resize: vertical;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: rgba(37, 211, 102, 0.6);
+      box-shadow: 0 0 0 4px rgba(37, 211, 102, 0.15);
+    }
+
+    textarea {
+      min-height: 120px;
+      max-height: 320px;
+    }
+
+    .hint {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .field-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .field-row .field-group {
+      flex: 1 1 180px;
+    }
+
+    .counter {
+      margin-top: -4px;
+      text-align: right;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .schedule-fields {
+      display: none;
+      animation: fade 0.2s ease;
+    }
+
+    .schedule-fields.visible {
+      display: flex;
+    }
+
+    @keyframes fade {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .preview-wrapper {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .preview-device {
+      flex: 1;
+      background: linear-gradient(180deg, #101a23 0%, #15232f 100%);
+      border-radius: 28px;
+      padding: 24px 18px 28px;
+      box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .preview-statusbar,
+    .preview-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: rgba(248, 250, 252, 0.6);
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .chat-thread {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    .chat-meta {
+      align-self: center;
+      background: rgba(15, 23, 42, 0.35);
+      color: rgba(248, 250, 252, 0.75);
+      font-size: 0.72rem;
+      padding: 6px 12px;
+      border-radius: 999px;
+    }
+
+    .chat-bubble {
+      max-width: 100%;
+      background: #1f2b37;
+      padding: 14px 16px;
+      border-radius: 18px 18px 4px 18px;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      box-shadow: 0 18px 35px rgba(8, 15, 26, 0.32);
+      position: relative;
+    }
+
+    .chat-bubble strong {
+      color: #f8fafc;
+    }
+
+    .chat-media {
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .chat-media.visible {
+      display: block;
+    }
+
+    .chat-media img {
+      width: 100%;
+      display: block;
+      object-fit: cover;
+      max-height: 160px;
+    }
+
+    .chat-button {
+      margin-top: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 999px;
+      background: rgba(37, 211, 102, 0.16);
+      color: #bbf7d0;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .actions {
+      border-top: 1px solid var(--border);
+      padding: clamp(20px, 3vw, 28px) clamp(28px, 4vw, 40px);
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      background: rgba(248, 250, 252, 0.9);
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      padding: 12px 24px;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    #cancel {
+      background: transparent;
+      color: #475569;
+    }
+
+    #cancel:hover {
+      transform: translateY(-1px);
+      color: #1f2937;
+    }
+
+    #done {
+      background: var(--accent);
+      color: #052e16;
+      box-shadow: 0 14px 30px rgba(37, 211, 102, 0.32);
+    }
+
+    #done:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+      transform: none;
+      box-shadow: none;
+    }
+
+    #done:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 38px rgba(37, 211, 102, 0.42);
+    }
+
+    @media (max-width: 960px) {
+      body {
+        padding: clamp(16px, 4vw, 28px);
+      }
+
+      .panels {
+        grid-template-columns: 1fr;
+      }
+
+      .preview-wrapper {
+        min-height: 420px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .app-header {
+        padding: 24px 24px 0;
+      }
+
+      .panels {
+        padding: 0 24px 24px;
+      }
+
+      .actions {
+        padding: 20px 24px;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="row">
-    <label for="discount">Discount (%)</label>
-    <select id="discount">
-      <option value="10">10%</option>
-      <option value="15">15%</option>
-      <option value="20">20%</option>
-      <option value="25">25%</option>
-    </select>
-  </div>
-  <div class="row">
-    <label for="emailBinding">Email (data binding or literal)</label>
-    <input id="emailBinding" placeholder="{{Contact.Attribute.DE.Email}}"/>
-  </div>
-  <div class="row">
-    <label for="mobileBinding">Mobile (data binding or literal)</label>
-    <input id="mobileBinding" placeholder="{{Contact.Attribute.DE.MobilePhone}}"/>
-  </div>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="header-title">
+        <div class="header-icon" aria-hidden="true">
+          <svg viewBox="0 0 32 32" role="presentation" focusable="false">
+            <path d="M16 4c-6.627 0-12 4.97-12 11.105 0 2.193.729 4.316 2.036 6.073L4 28l6.988-1.992C12.617 26.71 14.286 27 16 27c6.627 0 12-4.97 12-11.105C28 8.97 22.627 4 16 4zm0 20.8c-1.52 0-3.004-.36-4.325-1.044l-.31-.16-4.153 1.184 1.115-4.05-.203-.314C7.19 19.078 6.667 17.61 6.667 16.105 6.667 10.941 10.82 7 16 7s9.333 3.94 9.333 9.105S21.18 24.8 16 24.8zm5.087-6.294c-.278-.14-1.642-.812-1.897-.904-.255-.093-.441-.14-.628.14-.187.279-.72.904-.883 1.09-.163.187-.325.21-.603.07-.278-.14-1.17-.428-2.23-1.362-.824-.715-1.38-1.598-1.543-1.878-.163-.279-.017-.43.122-.569.125-.125.279-.325.419-.488.14-.163.187-.279.279-.465.093-.187.047-.35-.023-.488-.07-.14-.628-1.515-.861-2.076-.226-.544-.456-.47-.628-.479l-.537-.009c-.187 0-.488.07-.744.35-.255.279-.977.955-.977 2.328 0 1.373 1 2.699 1.14 2.886.14.186 1.968 3.004 4.775 4.094 2.807 1.09 2.807.726 3.312.679.505-.047 1.642-.667 1.873-1.31.232-.642.232-1.193.163-1.31-.07-.116-.255-.186-.533-.325z"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Design your WhatsApp campaign</h1>
+          <p>Craft a personalized message journey with rich media, dynamic text and a live preview before activating in Journey Builder.</p>
+        </div>
+      </div>
+    </header>
 
-  <div class="actions">
-    <button id="cancel">Cancel</button>
-    <button id="done" disabled>Done</button>
+    <div class="panels">
+      <section class="panel form-panel">
+        <h2>Campaign setup</h2>
+        <div class="field-group">
+          <label for="campaignName">Campaign name<span class="hint"> · shown internally</span></label>
+          <input id="campaignName" type="text" placeholder="Winter WhatsApp blast" autocomplete="off" required/>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label for="senderName">Sender profile</label>
+            <input id="senderName" type="text" placeholder="Acme Retail" autocomplete="off"/>
+          </div>
+          <div class="field-group">
+            <label for="messageTemplate">Message template</label>
+            <select id="messageTemplate">
+              <option value="promo">Seasonal promotion</option>
+              <option value="abandoned">Cart reminder</option>
+              <option value="loyalty">Loyalty milestone</option>
+              <option value="custom">Custom template</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="messageBody">Message body</label>
+          <textarea id="messageBody" placeholder="Hey {{Contact.Attribute.DE.FirstName}}, surprise! Enjoy 20% off on your next purchase with code WELCOME20."></textarea>
+          <div class="counter" id="messageCounter">0 / 1024 characters</div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label for="mediaUrl">Media URL <span class="hint">· optional</span></label>
+            <input id="mediaUrl" type="text" placeholder="https://cdn.example.com/creative.jpg" autocomplete="off"/>
+          </div>
+          <div class="field-group">
+            <label for="buttonLabel">Quick reply label <span class="hint">· optional</span></label>
+            <input id="buttonLabel" type="text" placeholder="Shop now" autocomplete="off"/>
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="sendType">Send timing</label>
+          <select id="sendType">
+            <option value="immediate">Send immediately</option>
+            <option value="schedule">Schedule for later</option>
+          </select>
+        </div>
+        <div class="field-row schedule-fields" id="scheduleFields">
+          <div class="field-group">
+            <label for="sendSchedule">Schedule date &amp; time</label>
+            <input id="sendSchedule" type="datetime-local"/>
+            <div class="hint">Automatically adjusted to the journey timezone.</div>
+          </div>
+        </div>
+        <div class="hint">Use data bindings such as <code>{{Contact.Attribute.DE.FirstName}}</code> or <code>{{Event.EventDate}}</code> to personalize content.</div>
+      </section>
+
+      <aside class="panel preview-panel">
+        <div class="preview-wrapper">
+          <div class="preview-header">
+            <span>WhatsApp preview</span>
+            <span id="previewTemplateLabel">Seasonal promotion</span>
+          </div>
+          <div class="preview-device" aria-live="polite">
+            <div class="preview-statusbar">
+              <span>9:41</span>
+              <span>5G · 72%</span>
+            </div>
+            <div class="chat-thread">
+              <span class="chat-meta" id="previewCampaign">Campaign preview</span>
+              <div class="chat-bubble" id="previewBubble">
+                <div class="chat-media" id="previewMedia">
+                  <img alt="Campaign media preview" id="previewMediaImage" src=""/>
+                </div>
+                <strong id="previewSender">Acme Retail</strong>
+                <div id="previewMessage">Hey there! Craft your message to see the preview update in real time.</div>
+                <div class="chat-button" id="previewButton" hidden>
+                  <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor" aria-hidden="true">
+                    <path d="M7.293 14.707a1 1 0 0 0 1.414 0l4-4a1 1 0 1 0-1.414-1.414L9 11.586V3a1 1 0 1 0-2 0v8.586l-2.293-2.293a1 1 0 0 0-1.414 1.414l4 4Z"/>
+                  </svg>
+                  <span id="previewButtonText">Shop now</span>
+                </div>
+              </div>
+            </div>
+            <div class="preview-footer">
+              <span>End-to-end encrypted</span>
+              <span>typing…</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="actions">
+      <button id="cancel" type="button">Cancel</button>
+      <button id="done" type="button" disabled>Save &amp; activate</button>
+    </div>
   </div>
 
   <script src="/modules/custom-activity/dist/custom-activity.js"></script>

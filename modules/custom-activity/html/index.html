@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Custom Activity</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; }
+    .row { margin-bottom: 12px; }
+    label { display:block; margin-bottom: 6px; font-weight:600;}
+    select, input { padding:8px; width: 320px; max-width: 100%; }
+    .actions { margin-top: 16px; display:flex; gap:8px; justify-content:flex-end; }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <label for="discount">Discount (%)</label>
+    <select id="discount">
+      <option value="10">10%</option>
+      <option value="15">15%</option>
+      <option value="20">20%</option>
+      <option value="25">25%</option>
+    </select>
+  </div>
+  <div class="row">
+    <label for="emailBinding">Email (data binding or literal)</label>
+    <input id="emailBinding" placeholder="{{Contact.Attribute.DE.Email}}"/>
+  </div>
+  <div class="row">
+    <label for="mobileBinding">Mobile (data binding or literal)</label>
+    <input id="mobileBinding" placeholder="{{Contact.Attribute.DE.MobilePhone}}"/>
+  </div>
+
+  <div class="actions">
+    <button id="cancel">Cancel</button>
+    <button id="done" disabled>Done</button>
+  </div>
+
+  <script src="/modules/custom-activity/dist/custom-activity.js"></script>
+</body>
+</html>

@@ -6,18 +6,20 @@ module.exports = {
   entry: path.resolve(__dirname, 'src/index.js'),
   output: {
     filename: 'custom-activity.js',
-    path: path.resolve(__dirname, 'dist')
+    path: path.resolve(__dirname, 'dist'),
+    clean: true
   },
   mode: 'production',
   module: {
-    rules: [
-      { test: /\.m?js$/, exclude: /(node_modules)/, use: { loader: 'babel-loader', options: { presets: [] } } }
-    ]
+    rules: []
   },
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
-        { from: path.resolve(__dirname, 'html/index.html'), to: path.resolve(__dirname, 'dist/../html/index.html') }
+        {
+          from: path.resolve(__dirname, 'html/index.html'),
+          to: path.resolve(__dirname, 'dist/index.html')
+        }
       ]
     })
   ],

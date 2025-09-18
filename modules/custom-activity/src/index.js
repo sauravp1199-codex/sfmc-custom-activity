@@ -7,7 +7,22 @@ let activity = null;
 const $ = (id) => document.getElementById(id);
 
 const requiredFields = ['campaignName', 'messageBody'];
-const liveFields = ['campaignName', 'senderName', 'messageTemplate', 'messageBody', 'mediaUrl', 'buttonLabel', 'sendType', 'sendSchedule'];
+const liveFields = [
+  'campaignName',
+  'senderName',
+  'messageTemplate',
+  'messageBody',
+  'mediaUrl',
+  'buttonLabel',
+  'sendType',
+  'sendSchedule'
+];
+const previewDefaults = {
+  templateLabel: 'Seasonal promotion',
+  campaignName: 'Campaign preview',
+  senderName: 'Acme Retail',
+  messageBody: 'Hey there! Craft your message to see the preview update in real time.',
+};
 
 function enableDone(enabled) {
   $('done').disabled = !enabled;
@@ -57,48 +72,65 @@ function updateMessageCounter(values = gatherFormValues()) {
   counter.textContent = `${length} / 1024 characters`;
 }
 
-function updatePreview(values = gatherFormValues()) {
-  const templateSelect = $('messageTemplate');
-  const selectedTemplateText = templateSelect?.options[templateSelect.selectedIndex]?.text || 'Seasonal promotion';
+function getSelectedTemplateLabel(select) {
+  if (!select) return previewDefaults.templateLabel;
 
-  const campaignLabel = values.campaignName || 'Campaign preview';
-  const senderLabel = values.senderName || 'Acme Retail';
-  const messageText = values.messageBody || 'Hey there! Craft your message to see the preview update in real time.';
-  const mediaUrl = values.mediaUrl;
-  const buttonLabel = values.buttonLabel;
+  const { options, selectedIndex } = select;
+  if (typeof selectedIndex === 'number' && selectedIndex >= 0) {
+    const option = options[selectedIndex];
+    if (option?.text) return option.text;
+  }
 
-  const previewTemplateLabel = $('previewTemplateLabel');
-  const previewCampaign = $('previewCampaign');
-  const previewSender = $('previewSender');
-  const previewMessage = $('previewMessage');
+  // Fallback if the value was hydrated programmatically and the select
+  // element has not yet updated its selectedIndex.
+  const selectedOption = Array.from(options || []).find((option) => option.value === select.value);
+  return selectedOption?.text || previewDefaults.templateLabel;
+}
+
+function setPreviewText(id, value, fallback) {
+  const node = $(id);
+  if (!node) return;
+  node.textContent = value || fallback;
+}
+
+function updatePreviewMedia(url) {
   const previewMedia = $('previewMedia');
   const previewMediaImage = $('previewMediaImage');
+  if (!previewMedia || !previewMediaImage) return;
+
+  if (url) {
+    previewMedia.classList.add('visible');
+    previewMediaImage.src = url;
+  } else {
+    previewMedia.classList.remove('visible');
+    previewMediaImage.removeAttribute('src');
+  }
+}
+
+function updatePreviewButton(label) {
   const previewButton = $('previewButton');
   const previewButtonText = $('previewButtonText');
+  if (!previewButton || !previewButtonText) return;
 
-  if (previewTemplateLabel) previewTemplateLabel.textContent = selectedTemplateText;
-  if (previewCampaign) previewCampaign.textContent = campaignLabel;
-  if (previewSender) previewSender.textContent = senderLabel;
-  if (previewMessage) previewMessage.textContent = messageText;
-
-  if (previewMedia && previewMediaImage) {
-    if (mediaUrl) {
-      previewMedia.classList.add('visible');
-      previewMediaImage.src = mediaUrl;
-    } else {
-      previewMedia.classList.remove('visible');
-      previewMediaImage.src = '';
-    }
+  if (label) {
+    previewButton.hidden = false;
+    previewButtonText.textContent = label;
+  } else {
+    previewButton.hidden = true;
+    previewButtonText.textContent = '';
   }
+}
 
-  if (previewButton && previewButtonText) {
-    if (buttonLabel) {
-      previewButton.hidden = false;
-      previewButtonText.textContent = buttonLabel;
-    } else {
-      previewButton.hidden = true;
-    }
-  }
+function updatePreview(values = gatherFormValues()) {
+  const templateSelect = $('messageTemplate');
+  const templateLabel = getSelectedTemplateLabel(templateSelect);
+
+  setPreviewText('previewTemplateLabel', templateLabel, previewDefaults.templateLabel);
+  setPreviewText('previewCampaign', values.campaignName, previewDefaults.campaignName);
+  setPreviewText('previewSender', values.senderName, previewDefaults.senderName);
+  setPreviewText('previewMessage', values.messageBody, previewDefaults.messageBody);
+  updatePreviewMedia(values.mediaUrl);
+  updatePreviewButton(values.buttonLabel);
 }
 
 function handleInputChange() {

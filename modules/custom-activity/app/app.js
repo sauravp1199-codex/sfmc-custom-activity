@@ -1,9 +1,16 @@
 // modules/custom-activity/app/app.js
+const express = require('express');
 const path = require('path');
 // const jwt = require('jsonwebtoken'); // if you plan to verify JB JWT
 
 module.exports = function(app, options = {}) {
   const moduleDirectory = path.join(options.rootDirectory, 'modules', 'custom-activity');
+
+  // Bundled assets (webpack output)
+  app.use(
+    '/modules/custom-activity/dist',
+    express.static(path.join(moduleDirectory, 'dist'))
+  );
 
   // Redirect base → UI
   app.get('/modules/custom-activity/', (req, res) =>

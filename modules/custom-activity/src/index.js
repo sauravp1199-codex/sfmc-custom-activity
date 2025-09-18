@@ -3,6 +3,17 @@ import Postmonger from 'postmonger';
 
 const connection = new Postmonger.Session();
 let activity = null;
+let isHydrating = false;
+let formState = {
+  campaignName: '',
+  senderName: '',
+  messageTemplate: 'promo',
+  messageBody: '',
+  mediaUrl: '',
+  buttonLabel: '',
+  sendType: 'immediate',
+  sendSchedule: '',
+};
 
 const $ = (id) => document.getElementById(id);
 
@@ -87,10 +98,39 @@ function getSelectedTemplateLabel(select) {
   return selectedOption?.text || previewDefaults.templateLabel;
 }
 
-function setPreviewText(id, value, fallback) {
+const personalizationTokenPattern = /({{\s*[^{}]+\s*}})/g;
+
+function escapeHtml(value = '') {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatPreviewText(value, { multiline = false } = {}) {
+  const escaped = escapeHtml(value);
+  const withLineBreaks = multiline
+    ? escaped.replace(/\r?\n/g, '<br />')
+    : escaped;
+
+  return withLineBreaks.replace(
+    personalizationTokenPattern,
+    '<span class="preview-token">$1</span>'
+  );
+}
+
+function hasContent(value) {
+  if (typeof value === 'string') return value.length > 0;
+  return Boolean(value);
+}
+
+function setPreviewText(id, value, fallback, options = {}) {
   const node = $(id);
   if (!node) return;
-  node.textContent = value || fallback;
+  const source = hasContent(value) ? value : fallback;
+  node.innerHTML = formatPreviewText(source || '', options);
 }
 
 function updatePreviewMedia(url) {
@@ -114,31 +154,35 @@ function updatePreviewButton(label) {
 
   if (label) {
     previewButton.hidden = false;
-    previewButtonText.textContent = label;
+    previewButtonText.innerHTML = formatPreviewText(label);
   } else {
     previewButton.hidden = true;
     previewButtonText.textContent = '';
   }
 }
 
-function updatePreview(values = gatherFormValues()) {
+function updatePreview(values = formState) {
   const templateSelect = $('messageTemplate');
   const templateLabel = getSelectedTemplateLabel(templateSelect);
 
   setPreviewText('previewTemplateLabel', templateLabel, previewDefaults.templateLabel);
   setPreviewText('previewCampaign', values.campaignName, previewDefaults.campaignName);
   setPreviewText('previewSender', values.senderName, previewDefaults.senderName);
-  setPreviewText('previewMessage', values.messageBody, previewDefaults.messageBody);
+  setPreviewText('previewMessage', values.messageBody, previewDefaults.messageBody, { multiline: true });
   updatePreviewMedia(values.mediaUrl);
   updatePreviewButton(values.buttonLabel);
 }
 
 function handleInputChange() {
   const values = gatherFormValues();
+  formState = { ...values };
   updateScheduleVisibility(values);
   updateMessageCounter(values);
   updatePreview(values);
   enableDone(isValid(values));
+  if (!isHydrating) {
+    connection.trigger('setActivityDirtyState', true);
+  }
 }
 
 function wireUI() {
@@ -172,6 +216,7 @@ function onInitActivity(data) {
   activity = data || {};
   const inArgs = (activity?.arguments?.execute?.inArguments || []).reduce((acc, obj) => Object.assign(acc, obj), {});
 
+  isHydrating = true;
   hydrateField('campaignName', inArgs.campaignName);
   hydrateField('senderName', inArgs.senderName);
   hydrateField('messageTemplate', inArgs.messageTemplate);
@@ -183,6 +228,7 @@ function onInitActivity(data) {
 
   handleInputChange();
   enableDone(false);
+  isHydrating = false;
 }
 
 function buildInArguments(values) {
@@ -206,7 +252,7 @@ function buildInArguments(values) {
 }
 
 function onDone() {
-  const values = gatherFormValues();
+  const values = { ...formState };
   if (!isValid(values)) {
     enableDone(false);
     return;

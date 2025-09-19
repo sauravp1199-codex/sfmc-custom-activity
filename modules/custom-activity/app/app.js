@@ -4,21 +4,35 @@ const path = require('path');
 const axios = require('axios');
 // const jwt = require('jsonwebtoken'); // if you plan to verify JB JWT
 
+const DEFAULT_PROD_API_URL = 'https://sfmc.comsensetechnologies.com/api/message';
+const DEFAULT_DEV_API_URL = 'http://localhost:3000/api/message';
+
 const {
-  API_URL = 'http://localhost:3000/api/message',
+  NODE_ENV,
+  APP_ENV,
+  API_URL: API_URL_OVERRIDE,
+  API_URL_PROD,
+  API_URL_DEV,
   API_TOKEN,
-  API_BASIC_TOKEN,
+  API_BASIC_TOKEN = 'YWRtaW46UGFzc3cwcmQh',
   API_USERNAME,
   API_PASSWORD,
   API_TIMEOUT = '10000',
   MESSAGE_CHANNEL = 'WABA',
   MESSAGE_CONTENT_TYPE = 'AUTO_TEMPLATE',
   MESSAGE_PREVIEW_URL = 'false',
-  MESSAGE_SENDER_NAME,
-  MESSAGE_SENDER_FROM,
-  MESSAGE_WEBHOOK_DNID,
+  MESSAGE_SENDER_NAME = 'whatsappdemo',
+  MESSAGE_SENDER_FROM = '919999999999',
+  MESSAGE_WEBHOOK_DNID = '1001',
   MESSAGE_METADATA_VERSION = 'v1.0.9',
 } = process.env;
+
+const environmentName = (APP_ENV || NODE_ENV || '').toLowerCase();
+const isDevEnvironment = ['development', 'dev', 'local'].includes(environmentName);
+const API_URL = API_URL_OVERRIDE
+  || (isDevEnvironment
+    ? (API_URL_DEV || DEFAULT_DEV_API_URL)
+    : (API_URL_PROD || DEFAULT_PROD_API_URL));
 
 const REQUEST_TIMEOUT = Number.isNaN(Number(API_TIMEOUT))
   ? 10000
@@ -26,12 +40,11 @@ const REQUEST_TIMEOUT = Number.isNaN(Number(API_TIMEOUT))
 const DEFAULT_PREVIEW_URL = coerceBoolean(MESSAGE_PREVIEW_URL, false);
 
 module.exports = function(app, options = {}) {
-  const moduleDirectory = path.join(options.rootDirectory, 'modules', 'custom-activity');
+  const publicDirectory = path.join(options.rootDirectory, 'public');
 
-  // Bundled assets (webpack output)
   app.use(
-    '/modules/custom-activity/dist',
-    express.static(path.join(moduleDirectory, 'dist'))
+    '/modules/custom-activity',
+    express.static(publicDirectory, { index: false })
   );
 
   // Redirect base → UI
@@ -41,7 +54,7 @@ module.exports = function(app, options = {}) {
 
   // UI (config iframe)
   app.get('/modules/custom-activity/index.html', (req, res) =>
-    res.sendFile(path.join(moduleDirectory, 'html', 'index.html'))
+    res.sendFile(path.join(publicDirectory, 'index.html'))
   );
 
   // Dynamic config.json

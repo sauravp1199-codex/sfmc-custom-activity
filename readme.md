@@ -68,13 +68,16 @@ Duplicate `.env.example` → `.env` and set values:
 
 ```
 PORT=1111
-API_URL=http://localhost:3000/api/message
+# APP_ENV=development              # uncomment to force the local dev API
+API_URL_DEV=http://localhost:3000/api/message
+API_URL_PROD=https://sfmc.comsensetechnologies.com/api/message
+# API_URL=                        # optional explicit override for both envs
 API_TIMEOUT=10000
 # Authentication (choose one):
-API_BASIC_TOKEN= # Base64 encoded username:password for Basic auth
+API_BASIC_TOKEN=                 # Base64 encoded username:password for Basic auth
 # API_USERNAME=
 # API_PASSWORD=
-# API_TOKEN= # Optional bearer token alternative
+# API_TOKEN=                      # optional bearer token alternative
 # Messaging defaults
 MESSAGE_CHANNEL=WABA
 MESSAGE_CONTENT_TYPE=AUTO_TEMPLATE
@@ -85,6 +88,8 @@ MESSAGE_WEBHOOK_DNID=1001
 MESSAGE_METADATA_VERSION=v1.0.9
 # JB_PUBLIC_KEY=-----BEGIN PUBLIC KEY----- (optional, for JWT verification)
 ```
+
+By default the service uses the production URL. Set `APP_ENV=development` (or `NODE_ENV=development`) when you specifically want to call a local mock. You can still provide a single `API_URL` to override both when needed.
 
 ---
 

@@ -2,6 +2,7 @@
 const express = require('express');
 const path = require('path');
 const axios = require('axios');
+const crypto = require('crypto');
 // const jwt = require('jsonwebtoken'); // if you plan to verify JB JWT
 
 const DEFAULT_PROD_API_URL = 'https://sfmc.comsensetechnologies.com/api/message';
@@ -132,6 +133,29 @@ module.exports = function(app, options = {}) {
       const message = data?.message || err?.message || 'Temporary failure';
       return res.status(500).json({ message });
     }
+  });
+
+  // Lightweight mock for the downstream messaging API so the
+  // Journey Builder activity can be exercised end-to-end without the
+  // real upstream integration.
+  app.post('/api/message', (req, res) => {
+    const authError = ensureInboundAuthorization(req?.headers?.authorization);
+    if (authError) {
+      console.error('api/message auth error:', authError.message);
+      return res.status(authError.status).json({ message: authError.message });
+    }
+
+    const validation = validateInboundMessage(req?.body);
+    if (!validation.valid) {
+      console.error('api/message validation error:', validation.message);
+      return res.status(400).json({ message: validation.message });
+    }
+
+    const payload = validation.payload;
+    console.log('api/message payload:', JSON.stringify(payload));
+
+    const responseBody = buildMockMessageResponse(payload);
+    return res.status(202).json(responseBody);
   });
 };
 
@@ -335,4 +359,100 @@ function pruneNullish(value) {
   if (value === undefined || value === null || value === '') return undefined;
 
   return value;
+}
+
+function ensureInboundAuthorization(authorizationHeader) {
+  const expectedBearer = API_TOKEN && API_TOKEN.trim();
+  const expectedBasic = resolveBasicToken();
+
+  if (!expectedBearer && !expectedBasic) {
+    return null;
+  }
+
+  if (!authorizationHeader) {
+    return { status: 401, message: 'Missing Authorization header' };
+  }
+
+  const header = authorizationHeader.trim();
+  if (header.toLowerCase().startsWith('bearer ')) {
+    if (expectedBearer && header.slice(7).trim() === expectedBearer) {
+      return null;
+    }
+    return { status: 401, message: 'Invalid bearer token' };
+  }
+
+  if (header.toLowerCase().startsWith('basic ')) {
+    const token = header.slice(6).trim();
+    if (expectedBasic && token === expectedBasic) {
+      return null;
+    }
+    return { status: 401, message: 'Invalid basic credentials' };
+  }
+
+  return { status: 401, message: 'Unsupported authorization scheme' };
+}
+
+function resolveBasicToken() {
+  if (API_BASIC_TOKEN) return API_BASIC_TOKEN;
+  if (API_USERNAME && API_PASSWORD) {
+    return Buffer.from(`${API_USERNAME}:${API_PASSWORD}`).toString('base64');
+  }
+  return null;
+}
+
+function validateInboundMessage(body = {}) {
+  if (!body || typeof body !== 'object') {
+    return { valid: false, message: 'Request body must be a JSON object' };
+  }
+
+  const message = body.message;
+  if (!message || typeof message !== 'object') {
+    return { valid: false, message: 'message object is required' };
+  }
+
+  const content = message.content;
+  if (!content || typeof content !== 'object') {
+    return { valid: false, message: 'message.content is required' };
+  }
+
+  if (!content.text) {
+    return { valid: false, message: 'message.content.text is required' };
+  }
+
+  const recipient = message.recipient;
+  if (!recipient || typeof recipient !== 'object' || !recipient.to) {
+    return { valid: false, message: 'message.recipient.to is required' };
+  }
+
+  const sender = message.sender;
+  if (!sender || typeof sender !== 'object' || !sender.from) {
+    return { valid: false, message: 'message.sender.from is required' };
+  }
+
+  const sanitized = pruneNullish(body);
+  return { valid: true, payload: sanitized };
+}
+
+function buildMockMessageResponse(payload) {
+  const messageId = generateMessageId();
+  const acceptedAt = new Date().toISOString();
+
+  return pruneNullish({
+    messageId,
+    status: 'accepted',
+    acceptedAt,
+    message: {
+      channel: payload?.message?.channel,
+      recipient: payload?.message?.recipient?.to,
+    },
+    metaData: payload?.metaData,
+  });
+}
+
+function generateMessageId() {
+  if (typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  return crypto.randomBytes(16).toString('hex');
 }

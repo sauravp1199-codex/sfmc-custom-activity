@@ -422,7 +422,7 @@
         <div class="field-row">
           <div class="field-group">
             <label for="senderName">Sender profile</label>
-            <input id="senderName" type="text" placeholder="Acme Retail" autocomplete="off"/>
+          <input id="senderName" type="text" placeholder="Adidas India" autocomplete="off"/>
           </div>
           <div class="field-group">
             <label for="messageTemplate">Message template</label>
@@ -436,7 +436,7 @@
         </div>
         <div class="field-group">
           <label for="messageBody">Message body</label>
-          <textarea id="messageBody" placeholder="Hey {{Contact.Attribute.DE.FirstName}}, surprise! Enjoy 20% off on your next purchase with code WELCOME20."></textarea>
+          <textarea id="messageBody" placeholder="Hey {{Contact.Attribute.DE.FirstName}}, surprise! Enjoy 60% off on your next purchase with code WELCOME60."></textarea>
           <div class="counter" id="messageCounter">0 / 1024 characters</div>
         </div>
         <div class="field-row">
@@ -446,7 +446,7 @@
           </div>
           <div class="field-group">
             <label for="buttonLabel">Quick reply label <span class="hint">· optional</span></label>
-            <input id="buttonLabel" type="text" placeholder="Shop now" autocomplete="off"/>
+            <input id="buttonLabel" type="text" placeholder="Shop Now" autocomplete="off"/>
           </div>
         </div>
         <div class="field-group">
@@ -478,18 +478,18 @@
               <span>5G · 72%</span>
             </div>
             <div class="chat-thread">
-              <span class="chat-meta" id="previewCampaign">Campaign preview</span>
+              <span class="chat-meta" id="previewCampaign">Adidas India – Welcome Offer</span>
               <div class="chat-bubble" id="previewBubble">
                 <div class="chat-media" id="previewMedia">
                   <img alt="Campaign media preview" id="previewMediaImage" src=""/>
                 </div>
-                <strong id="previewSender">Acme Retail</strong>
-                <div id="previewMessage">Hey there! Craft your message to see the preview update in real time.</div>
+                <strong id="previewSender">Adidas India</strong>
+                <div id="previewMessage">Hey {{Contact.Attribute.DE.FirstName}}, surprise! Enjoy 60% off on your next purchase with code WELCOME60.</div>
                 <div class="chat-button" id="previewButton" hidden>
                   <svg viewBox="0 0 20 20" width="16" height="16" fill="currentColor" aria-hidden="true">
                     <path d="M7.293 14.707a1 1 0 0 0 1.414 0l4-4a1 1 0 1 0-1.414-1.414L9 11.586V3a1 1 0 1 0-2 0v8.586l-2.293-2.293a1 1 0 0 0-1.414 1.414l4 4Z"/>
                   </svg>
-                  <span id="previewButtonText">Shop now</span>
+                  <span id="previewButtonText">Shop Now</span>
                 </div>
               </div>
             </div>

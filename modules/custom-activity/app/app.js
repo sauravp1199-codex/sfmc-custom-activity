@@ -1,7 +1,29 @@
 // modules/custom-activity/app/app.js
 const express = require('express');
 const path = require('path');
+const axios = require('axios');
 // const jwt = require('jsonwebtoken'); // if you plan to verify JB JWT
+
+const {
+  API_URL = 'http://localhost:3000/api/message',
+  API_TOKEN,
+  API_BASIC_TOKEN,
+  API_USERNAME,
+  API_PASSWORD,
+  API_TIMEOUT = '10000',
+  MESSAGE_CHANNEL = 'WABA',
+  MESSAGE_CONTENT_TYPE = 'AUTO_TEMPLATE',
+  MESSAGE_PREVIEW_URL = 'false',
+  MESSAGE_SENDER_NAME,
+  MESSAGE_SENDER_FROM,
+  MESSAGE_WEBHOOK_DNID,
+  MESSAGE_METADATA_VERSION = 'v1.0.9',
+} = process.env;
+
+const REQUEST_TIMEOUT = Number.isNaN(Number(API_TIMEOUT))
+  ? 10000
+  : Number(API_TIMEOUT);
+const DEFAULT_PREVIEW_URL = coerceBoolean(MESSAGE_PREVIEW_URL, false);
 
 module.exports = function(app, options = {}) {
   const moduleDirectory = path.join(options.rootDirectory, 'modules', 'custom-activity');
@@ -62,35 +84,217 @@ module.exports = function(app, options = {}) {
 
       const inArgs = (req.body?.inArguments || [])
         .reduce((acc, obj) => Object.assign(acc, obj), {});
-      // Example inArguments (from UI or data bindings)
-      const { discount = 10, email, mobile } = inArgs;
 
-      // TODO: integrate your API
-      // const apiResp = await axios.post(process.env.API_URL + '/issue-discount', { email, mobile, discount }, {
-      //   headers: { Authorization: `Bearer ${process.env.API_TOKEN}` },
-      //   timeout: 10000
-      // });
+      const payload = buildMessagePayload(inArgs);
 
-      // Demo response
-      const out = {
-        discount: Number(discount),
-        discountCode: generateCode() + `-${discount}%`,
-        // issuedAt: apiResp.data.issuedAt,
-      };
+      if (!payload?.message?.content?.text) {
+        console.error('execute validation error: missing message content text');
+        return res.status(400).json({ message: 'Message content text is required' });
+      }
 
-      console.log('execute out:', out);
+      if (!payload?.message?.recipient?.to) {
+        console.error('execute validation error: missing recipient number');
+        return res.status(400).json({ message: 'Recipient number is required' });
+      }
+
+      const headers = buildRequestHeaders();
+
+      console.log('execute upstream request:', JSON.stringify(payload));
+
+      const response = await axios.post(API_URL, payload, {
+        headers,
+        timeout: REQUEST_TIMEOUT,
+      });
+
+      const out = buildExecuteResponse(response, payload);
+
+      console.log('execute upstream response:', out);
       return res.status(200).json(out);
     } catch (err) {
-      console.error('execute error:', err?.response?.status, err?.message);
-      // Non-2xx ejects contact; choose carefully
-      return res.status(500).json({ message: 'Temporary failure' });
+      const status = err?.response?.status;
+      const data = err?.response?.data;
+      console.error('execute error:', status, err?.message, data ? JSON.stringify(data) : '');
+
+      const message = data?.message || err?.message || 'Temporary failure';
+      return res.status(500).json({ message });
     }
   });
 };
 
-function generateCode(len = 8) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let s = '';
-  while (s.length < len) s += chars[Math.floor(Math.random() * chars.length)];
-  return s;
+function buildRequestHeaders() {
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  if (API_USERNAME && API_PASSWORD) {
+    headers.Authorization = `Basic ${Buffer.from(`${API_USERNAME}:${API_PASSWORD}`).toString('base64')}`;
+  } else if (API_BASIC_TOKEN) {
+    headers.Authorization = `Basic ${API_BASIC_TOKEN}`;
+  } else if (API_TOKEN) {
+    headers.Authorization = `Bearer ${API_TOKEN}`;
+  }
+
+  return headers;
+}
+
+function buildExecuteResponse(response, payload) {
+  const upstream = response?.data;
+  const messageId = upstream?.messageId
+    || upstream?.id
+    || upstream?.message?.id
+    || upstream?.message?.messageId
+    || null;
+
+  const reference = payload?.message?.recipient?.reference;
+  const preferences = payload?.message?.preferences;
+
+  return pruneNullish({
+    upstreamStatus: response?.status,
+    messageId,
+    channel: payload?.message?.channel,
+    recipient: payload?.message?.recipient?.to,
+    campaignName: reference?.campaignName || reference?.cust_ref,
+    sendType: preferences?.sendType,
+    sendSchedule: preferences?.sendSchedule,
+    upstreamResponse: upstream,
+  });
+}
+
+function buildMessagePayload(inArgs = {}) {
+  const previewUrl = coerceBoolean(
+    firstNonNullish([inArgs.previewUrl, inArgs.contentPreviewUrl]),
+    DEFAULT_PREVIEW_URL
+  );
+
+  const campaignName = firstNonNullish([inArgs.campaignName, inArgs.campaign, inArgs.activityName]);
+  const messageTemplate = firstNonNullish([inArgs.messageTemplate, inArgs.templateName]);
+  const sendType = firstNonNullish([inArgs.sendType, 'immediate']);
+  const sendSchedule = sendType === 'schedule'
+    ? firstNonNullish([inArgs.sendSchedule, inArgs.scheduledAt])
+    : undefined;
+
+  const content = {
+    preview_url: previewUrl,
+    text: firstNonNullish([inArgs.messageText, inArgs.messageBody, inArgs.contentText]),
+    type: firstNonNullish([inArgs.contentType, MESSAGE_CONTENT_TYPE]),
+    template: messageTemplate ? { name: messageTemplate } : undefined,
+    media: buildMedia(inArgs.mediaUrl, inArgs.mediaType),
+    buttons: buildButtons(inArgs.buttonLabel),
+  };
+
+  const payload = {
+    message: {
+      channel: firstNonNullish([inArgs.channel, MESSAGE_CHANNEL]),
+      content,
+      recipient: {
+        to: firstNonNullish([inArgs.recipientTo, inArgs.mobile, inArgs.to]),
+        recipient_type: firstNonNullish([inArgs.recipientType, 'individual']),
+        reference: {
+          cust_ref: firstNonNullish([inArgs.customerReference, inArgs.custRef, campaignName]),
+          messageTag1: firstNonNullish([inArgs.messageTag1, inArgs.messageTag, campaignName, messageTemplate]),
+          conversationId: firstNonNullish([inArgs.conversationId, inArgs.journeyConversationId]),
+          campaignName,
+          templateName: messageTemplate,
+        },
+      },
+      sender: {
+        name: firstNonNullish([inArgs.senderName, MESSAGE_SENDER_NAME]),
+        from: firstNonNullish([inArgs.senderFrom, MESSAGE_SENDER_FROM]),
+      },
+      preferences: {
+        webHookDNId: firstNonNullish([inArgs.webHookDNId, MESSAGE_WEBHOOK_DNID]),
+        sendType,
+        sendSchedule,
+      },
+    },
+    metaData: {
+      version: firstNonNullish([inArgs.metadataVersion, inArgs.metaVersion, MESSAGE_METADATA_VERSION]),
+      campaign: {
+        name: campaignName,
+        template: messageTemplate,
+        mediaUrl: inArgs.mediaUrl,
+        buttonLabel: inArgs.buttonLabel,
+        sendType,
+        sendSchedule,
+      },
+    },
+  };
+
+  return pruneNullish(payload);
+}
+
+function buildMedia(url, explicitType) {
+  const mediaUrl = firstNonNullish([url]);
+  if (!mediaUrl) return undefined;
+
+  const type = explicitType || inferMediaType(mediaUrl);
+  return pruneNullish({
+    type,
+    url: mediaUrl,
+  });
+}
+
+function buildButtons(label) {
+  const quickReplyLabel = firstNonNullish([label]);
+  if (!quickReplyLabel) return undefined;
+
+  return [
+    {
+      type: 'QUICK_REPLY',
+      label: quickReplyLabel,
+    },
+  ];
+}
+
+function inferMediaType(url) {
+  if (!url || typeof url !== 'string') return undefined;
+
+  const normalized = url.toLowerCase();
+  if (normalized.match(/\.(mp4|mov|m4v|avi|wmv|webm)(\?|$)/)) return 'video';
+  if (normalized.match(/\.(mp3|wav|m4a|aac|ogg)(\?|$)/)) return 'audio';
+  return 'image';
+}
+
+function coerceBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return fallback;
+    if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'n', 'off'].includes(normalized)) return false;
+  }
+  return Boolean(value);
+}
+
+function firstNonNullish(values = []) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function pruneNullish(value) {
+  if (Array.isArray(value)) {
+    const result = value
+      .map((item) => pruneNullish(item))
+      .filter((item) => item !== undefined);
+    return result.length > 0 ? result : undefined;
+  }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value)
+      .map(([key, val]) => [key, pruneNullish(val)])
+      .filter(([, val]) => val !== undefined);
+
+    if (entries.length === 0) return undefined;
+    return Object.fromEntries(entries);
+  }
+
+  if (value === undefined || value === null || value === '') return undefined;
+
+  return value;
 }

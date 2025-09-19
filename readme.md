@@ -68,13 +68,16 @@ Duplicate `.env.example` → `.env` and set values:
 
 ```
 PORT=1111
-API_URL=http://localhost:3000/api/message
+APP_ENV=development              # switch to production for live deployments
+API_URL_DEV=http://localhost:3000/api/message
+API_URL_PROD=https://sfmc.comsensetechnologies.com/api/message
+# API_URL=                        # optional explicit override for both envs
 API_TIMEOUT=10000
 # Authentication (choose one):
-API_BASIC_TOKEN= # Base64 encoded username:password for Basic auth
+API_BASIC_TOKEN=                 # Base64 encoded username:password for Basic auth
 # API_USERNAME=
 # API_PASSWORD=
-# API_TOKEN= # Optional bearer token alternative
+# API_TOKEN=                      # optional bearer token alternative
 # Messaging defaults
 MESSAGE_CHANNEL=WABA
 MESSAGE_CONTENT_TYPE=AUTO_TEMPLATE
@@ -85,6 +88,8 @@ MESSAGE_WEBHOOK_DNID=1001
 MESSAGE_METADATA_VERSION=v1.0.9
 # JB_PUBLIC_KEY=-----BEGIN PUBLIC KEY----- (optional, for JWT verification)
 ```
+
+`APP_ENV` (or `NODE_ENV`) determines whether the service reads from the development or production URL settings. You can still provide a single `API_URL` to override both when needed.
 
 ---
 

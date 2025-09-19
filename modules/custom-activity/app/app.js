@@ -27,6 +27,7 @@ const {
   MESSAGE_METADATA_VERSION = 'v1.0.9',
 } = process.env;
 
+
 const environmentName = (APP_ENV || NODE_ENV || '').toLowerCase();
 const isDevEnvironment = ['development', 'dev', 'local'].includes(environmentName);
 const API_URL = API_URL_OVERRIDE

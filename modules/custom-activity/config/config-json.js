@@ -42,7 +42,7 @@ module.exports = function configJSON(req) {
             sendType: 'immediate'
           },
           {
-            recipientTo: '919999999999'
+            recipientTo: '{{Contact.Attribute.DE.Mobile}}'
           },
           {
             senderFrom: '919999999999'

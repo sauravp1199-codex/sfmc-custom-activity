@@ -59,7 +59,13 @@ module.exports = function(app, options = {}) {
   // Validate (pre-publish)
   app.post('/modules/custom-activity/validate', (req, res) => {
     console.log('validate payload:', JSON.stringify(req.body));
-    // Add your validations; return 400 to block publish
+    const inArgs = collectInArguments(req.body);
+    const validation = validateInArguments(inArgs);
+    if (!validation.valid) {
+      console.error('validate error:', validation.message);
+      return res.status(400).json({ message: validation.message });
+    }
+
     return res.status(200).json({});
   });
 
@@ -82,20 +88,14 @@ module.exports = function(app, options = {}) {
       // const token = req.headers['authorization']?.split(' ')[1];
       // jwt.verify(token, process.env.JB_PUBLIC_KEY, { algorithms: ['RS256'] });
 
-      const inArgs = (req.body?.inArguments || [])
-        .reduce((acc, obj) => Object.assign(acc, obj), {});
-
-      const payload = buildMessagePayload(inArgs);
-
-      if (!payload?.message?.content?.text) {
-        console.error('execute validation error: missing message content text');
-        return res.status(400).json({ message: 'Message content text is required' });
+      const inArgs = collectInArguments(req.body);
+      const validation = validateInArguments(inArgs);
+      if (!validation.valid) {
+        console.error('execute validation error:', validation.message);
+        return res.status(400).json({ message: validation.message });
       }
 
-      if (!payload?.message?.recipient?.to) {
-        console.error('execute validation error: missing recipient number');
-        return res.status(400).json({ message: 'Recipient number is required' });
-      }
+      const payload = validation.payload;
 
       const headers = buildRequestHeaders();
 
@@ -120,6 +120,30 @@ module.exports = function(app, options = {}) {
     }
   });
 };
+
+function collectInArguments(payload = {}) {
+  const candidate = Array.isArray(payload?.inArguments)
+    ? payload.inArguments
+    : Array.isArray(payload?.arguments?.execute?.inArguments)
+      ? payload.arguments.execute.inArguments
+      : [];
+
+  return candidate.reduce((acc, obj) => Object.assign(acc, obj), {});
+}
+
+function validateInArguments(inArgs = {}) {
+  const payload = buildMessagePayload(inArgs);
+
+  if (!payload?.message?.content?.text) {
+    return { valid: false, message: 'Message content text is required' };
+  }
+
+  if (!payload?.message?.recipient?.to) {
+    return { valid: false, message: 'Recipient number is required' };
+  }
+
+  return { valid: true, payload };
+}
 
 function buildRequestHeaders() {
   const headers = {

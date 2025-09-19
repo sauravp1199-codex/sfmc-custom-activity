@@ -419,6 +419,12 @@
           <label for="campaignName">Campaign name<span class="hint"> · shown internally</span></label>
           <input id="campaignName" type="text" placeholder="Winter WhatsApp blast" autocomplete="off" required/>
         </div>
+        <div class="field-group">
+          <label for="recipientTo">Recipient mobile<span class="hint"> · map a Data Extension field</span></label>
+          <input id="recipientTo" type="text" placeholder="{{Contact.Attribute.DE.Mobile}}" list="recipientOptions" autocomplete="off" required/>
+          <datalist id="recipientOptions"></datalist>
+          <div class="hint">Select from the Data Extension attributes or paste a JB data binding token.</div>
+        </div>
         <div class="field-row">
           <div class="field-group">
             <label for="senderName">Sender profile</label>
@@ -479,6 +485,7 @@
             </div>
             <div class="chat-thread">
               <span class="chat-meta" id="previewCampaign">Adidas India – Welcome Offer</span>
+              <span class="chat-meta" id="previewSendTiming">Sending immediately</span>
               <div class="chat-bubble" id="previewBubble">
                 <div class="chat-media" id="previewMedia">
                   <img alt="Campaign media preview" id="previewMediaImage" src=""/>

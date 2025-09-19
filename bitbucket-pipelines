@@ -1,0 +1,31 @@
+image: atlassian/default-image:latest
+
+# pipelines:
+#   branches:
+#     main:
+#       - step:
+#           name: Deploy to Ubuntu Server
+#           script:
+#             - echo "Starting deployment..."
+#             - apt-get update && apt-get install -y sshpass
+#             - sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no $SERVER_USER@$SERVER_IP "/home/comsense/deployment/frontend-deploy.sh"
+
+pipelines:
+  branches:
+    dev:
+      - step:
+          name: Deploy to Dev
+          deployment: Dev
+          script:
+            - echo "Deploying to DEV..."
+            - apt-get update && apt-get install -y sshpass
+            - sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_IP" "$DEPLOY_SCRIPT_PATH"
+
+    prod:
+      - step:
+          name: Deploy to Production
+          deployment: Production
+          script:
+            - echo "Deploying to PRODUCTION..."
+            - apt-get update && apt-get install -y sshpass
+            - sshpass -p "$SERVER_PASS" ssh -o StrictHostKeyChecking=no "$SERVER_USER@$SERVER_IP" "$DEPLOY_SCRIPT_PATH"

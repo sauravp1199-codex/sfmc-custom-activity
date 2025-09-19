@@ -7,6 +7,8 @@ let isHydrating = false;
 const defaultMessageBody = 'Hey {{Contact.Attribute.DE.FirstName}}, surprise! Enjoy 60% off on your next purchase with code WELCOME60.';
 const defaultMediaUrl = 'https://images.unsplash.com/photo-1549880338-65ddcdfd017b';
 const defaultButtonLabel = 'Shop Now';
+const defaultRecipientTo = '{{Contact.Attribute.DE.Mobile}}';
+const defaultSendTiming = 'Sending immediately';
 
 let formState = {
   campaignName: 'Adidas India – Welcome Offer',
@@ -17,11 +19,12 @@ let formState = {
   buttonLabel: defaultButtonLabel,
   sendType: 'immediate',
   sendSchedule: '',
+  recipientTo: defaultRecipientTo,
 };
 
 const $ = (id) => document.getElementById(id);
 
-const requiredFields = ['campaignName', 'messageBody'];
+const requiredFields = ['campaignName', 'messageBody', 'recipientTo'];
 const liveFields = [
   'campaignName',
   'senderName',
@@ -30,14 +33,19 @@ const liveFields = [
   'mediaUrl',
   'buttonLabel',
   'sendType',
-  'sendSchedule'
+  'sendSchedule',
+  'recipientTo'
 ];
 const previewDefaults = {
   templateLabel: 'Seasonal promotion',
   campaignName: 'Adidas India – Welcome Offer',
   senderName: 'Adidas India',
   messageBody: defaultMessageBody,
+  sendTiming: defaultSendTiming,
 };
+
+let availableSchemaAttributes = [];
+let recipientHydrated = false;
 
 function enableDone(enabled) {
   $('done').disabled = !enabled;
@@ -55,6 +63,7 @@ function gatherFormValues() {
     buttonLabel: trim($('buttonLabel')?.value) || '',
     sendType: $('sendType')?.value || 'immediate',
     sendSchedule: trim($('sendSchedule')?.value) || '',
+    recipientTo: trim($('recipientTo')?.value) || '',
   };
 }
 
@@ -173,8 +182,49 @@ function updatePreview(values = formState) {
   setPreviewText('previewCampaign', values.campaignName, previewDefaults.campaignName);
   setPreviewText('previewSender', values.senderName, previewDefaults.senderName);
   setPreviewText('previewMessage', values.messageBody, previewDefaults.messageBody, { multiline: true });
+  updateSendTimingPreview(values);
   updatePreviewMedia(values.mediaUrl);
   updatePreviewButton(values.buttonLabel);
+}
+
+function updateSendTimingPreview(values) {
+  const node = $('previewSendTiming');
+  if (!node) return;
+
+  const label = formatSendTiming(values);
+  node.textContent = label || previewDefaults.sendTiming;
+}
+
+function formatSendTiming(values) {
+  if (values.sendType === 'schedule') {
+    if (!values.sendSchedule) {
+      return 'Scheduled send (date required)';
+    }
+
+    const schedule = values.sendSchedule;
+    if (schedule.includes('{{')) {
+      return `Scheduled: ${schedule}`;
+    }
+
+    const date = new Date(schedule);
+    if (!Number.isNaN(date.getTime())) {
+      try {
+        return `Scheduled: ${date.toLocaleString(undefined, {
+          year: 'numeric',
+          month: 'short',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        })}`;
+      } catch (err) {
+        // Ignore locale issues and fall through to raw value
+      }
+    }
+
+    return `Scheduled: ${schedule}`;
+  }
+
+  return defaultSendTiming;
 }
 
 function handleInputChange() {
@@ -214,6 +264,10 @@ function hydrateField(id, value) {
   } else {
     element.value = value || '';
   }
+
+  if (id === 'recipientTo') {
+    recipientHydrated = Boolean(value);
+  }
 }
 
 function onInitActivity(data) {
@@ -229,6 +283,7 @@ function onInitActivity(data) {
   hydrateField('buttonLabel', inArgs.buttonLabel);
   hydrateField('sendType', inArgs.sendType || 'immediate');
   hydrateField('sendSchedule', inArgs.sendSchedule);
+  hydrateField('recipientTo', inArgs.recipientTo || inArgs.mobile || inArgs.to);
 
   handleInputChange();
   enableDone(false);
@@ -244,6 +299,7 @@ function buildInArguments(values) {
     ['mediaUrl', values.mediaUrl],
     ['buttonLabel', values.buttonLabel],
     ['sendType', values.sendType],
+    ['recipientTo', values.recipientTo],
   ];
 
   if (values.sendType === 'schedule' && values.sendSchedule) {
@@ -253,6 +309,78 @@ function buildInArguments(values) {
   return entries
     .filter(([, value]) => value)
     .map(([key, value]) => ({ [key]: value }));
+}
+
+function onRequestedSchema(payload) {
+  availableSchemaAttributes = normalizeSchemaAttributes(payload?.schema);
+  populateRecipientOptions();
+  ensureRecipientDefault();
+}
+
+function normalizeSchemaAttributes(schema = []) {
+  return (schema || [])
+    .map((attribute) => ({
+      key: attribute?.key,
+      name: attribute?.name || attribute?.key?.split('.')?.slice(-1)?.[0],
+      type: attribute?.type || '',
+    }))
+    .filter((attribute) => Boolean(attribute.key));
+}
+
+function populateRecipientOptions() {
+  const datalist = $('recipientOptions');
+  if (!datalist) return;
+
+  datalist.innerHTML = '';
+
+  availableSchemaAttributes.forEach((attribute) => {
+    const option = document.createElement('option');
+    option.value = formatAttributeToken(attribute.key);
+    option.textContent = attribute.name
+      ? `${attribute.name} · ${option.value}`
+      : option.value;
+    datalist.appendChild(option);
+  });
+}
+
+function ensureRecipientDefault() {
+  if (recipientHydrated) return;
+
+  const candidate = findPhoneLikeAttributeToken();
+  if (!candidate) return;
+
+  const current = $('recipientTo')?.value;
+  if (current) {
+    recipientHydrated = true;
+    return;
+  }
+
+  isHydrating = true;
+  hydrateField('recipientTo', candidate);
+  handleInputChange();
+  isHydrating = false;
+}
+
+function findPhoneLikeAttributeToken() {
+  if (!availableSchemaAttributes?.length) return defaultRecipientTo;
+
+  const phoneAttribute = availableSchemaAttributes.find((attribute) => isPhoneLike(attribute));
+  const fallback = phoneAttribute || availableSchemaAttributes[0];
+
+  return fallback ? formatAttributeToken(fallback.key) : defaultRecipientTo;
+}
+
+function isPhoneLike(attribute = {}) {
+  const type = (attribute.type || '').toLowerCase();
+  if (type.includes('phone') || type.includes('tel')) return true;
+
+  const haystack = `${attribute.key || ''} ${attribute.name || ''}`.toLowerCase();
+  return haystack.includes('phone') || haystack.includes('mobile') || haystack.includes('whatsapp');
+}
+
+function formatAttributeToken(key) {
+  if (!key) return '';
+  return key.startsWith('{{') ? key : `{{${key}}}`;
 }
 
 function onDone() {
@@ -289,6 +417,7 @@ function onDone() {
 function init() {
   wireUI();
   connection.on('initActivity', onInitActivity);
+  connection.on('requestedSchema', onRequestedSchema);
   connection.trigger('ready');
   connection.trigger('requestSchema');
   connection.trigger('requestedInteraction');

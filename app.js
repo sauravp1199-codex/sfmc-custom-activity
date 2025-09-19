@@ -17,7 +17,7 @@ require('./modules/custom-activity/app/app')(app, {
   rootDirectory: __dirname
 });
 
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 1111;
 app.listen(PORT, () => {
   console.log(`SFMC Custom Activity server listening on http://localhost:${PORT}`);
 });

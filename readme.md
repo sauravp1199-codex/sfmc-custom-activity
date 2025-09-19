@@ -28,7 +28,7 @@ npm run watch    # development build (watch mode)
 ### 3. Run the Server
 ```bash
 npm start
-# app will be available at http://localhost:8080
+# app will be available at http://localhost:1111
 ```
 
 ---
@@ -52,12 +52,12 @@ sfmc-custom-activity/
 
 ## 🔑 Endpoints
 
-- `GET  /modules/custom-activity/config.json` → Descriptor for JB.  
-- `GET  /modules/custom-activity/index.html` → Config inspector UI.  
-- `POST /modules/custom-activity/save` → Save inspector data.  
-- `POST /modules/custom-activity/publish` → Journey activated.  
-- `POST /modules/custom-activity/validate` → Validate before publish.  
-- `POST /modules/custom-activity/stop` → Journey stopped.  
+- `GET  /modules/custom-activity/config.json` → Descriptor for JB.
+- `GET  /modules/custom-activity/index.html` → Config inspector UI.
+- `POST /modules/custom-activity/save` → Save inspector data.
+- `POST /modules/custom-activity/publish` → Journey activated.
+- `POST /modules/custom-activity/validate` → Validate before publish.
+- `POST /modules/custom-activity/stop` → Journey stopped.
 - `POST /modules/custom-activity/execute` → Contact reaches step.
 
 ---
@@ -67,7 +67,7 @@ sfmc-custom-activity/
 Duplicate `.env.example` → `.env` and set values:
 
 ```
-PORT=8080
+PORT=1111
 API_URL=http://localhost:3000/api/message
 API_TIMEOUT=10000
 # Authentication (choose one):
@@ -116,7 +116,7 @@ npm start
 
 Test `/execute` endpoint:
 ```bash
-curl -X POST http://localhost:8080/modules/custom-activity/execute \
+curl -X POST http://localhost:1111/modules/custom-activity/execute \
   -H "Content-Type: application/json" \
   -d '{
     "inArguments": [

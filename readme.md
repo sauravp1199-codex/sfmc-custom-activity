@@ -68,10 +68,41 @@ Duplicate `.env.example` → `.env` and set values:
 
 ```
 PORT=8080
-API_URL=https://your-api.example.com
-API_TOKEN=your-secret
+API_URL=http://localhost:3000/api/message
+API_TIMEOUT=10000
+# Authentication (choose one):
+API_BASIC_TOKEN= # Base64 encoded username:password for Basic auth
+# API_USERNAME=
+# API_PASSWORD=
+# API_TOKEN= # Optional bearer token alternative
+# Messaging defaults
+MESSAGE_CHANNEL=WABA
+MESSAGE_CONTENT_TYPE=AUTO_TEMPLATE
+MESSAGE_PREVIEW_URL=false
+MESSAGE_SENDER_NAME="Adidas India"
+MESSAGE_SENDER_FROM=919999999999
+MESSAGE_WEBHOOK_DNID=1001
+MESSAGE_METADATA_VERSION=v1.0.9
 # JB_PUBLIC_KEY=-----BEGIN PUBLIC KEY----- (optional, for JWT verification)
 ```
+
+---
+
+## 🧱 Journey Builder Inspector Fields
+
+The configuration inspector surfaces the same inputs your downstream API expects:
+
+| Field | Description | Downstream mapping |
+| ----- | ----------- | ------------------ |
+| Campaign name | Internal campaign label used for reporting. | `recipient.reference.cust_ref` and `metaData.campaign.name` |
+| Sender profile | Display name shown in the WhatsApp preview. | `message.sender.name` |
+| Message template | Dropdown selector for your approved template. | `message.content.template.name` and `recipient.reference.templateName` |
+| Message body | Personalised text body (supports JB merge fields). | `message.content.text` |
+| Media URL | Optional header media (image/audio/video inferred by file extension). | `message.content.media` |
+| Quick reply label | Optional single quick reply CTA. | `message.content.buttons[0].label` |
+| Send timing | Choose immediate delivery or schedule with date/time. | `message.preferences.sendType/sendSchedule` |
+
+All form values are persisted as Journey Builder **in-arguments** and sent to `/execute` when a contact reaches the activity.
 
 ---
 
@@ -88,21 +119,31 @@ Test `/execute` endpoint:
 curl -X POST http://localhost:8080/modules/custom-activity/execute \
   -H "Content-Type: application/json" \
   -d '{
-    "inArguments":[
-      {"discount":20},
-      {"email":"test@example.com"},
-      {"mobile":"+9198xxxxxx"}
+    "inArguments": [
+      { "recipientTo": "919999999999" },
+      { "senderFrom": "919999999999" },
+      { "senderName": "Adidas India" },
+      { "campaignName": "Adidas India – Welcome Offer" },
+      { "messageTemplate": "promo" },
+      { "messageBody": "Hey {{Contact.Attribute.DE.FirstName}}, surprise! Enjoy 60% off on your next purchase with code WELCOME60." },
+      { "mediaUrl": "https://images.unsplash.com/photo-1549880338-65ddcdfd017b" },
+      { "buttonLabel": "Shop Now" },
+      { "sendType": "immediate" }
     ]
   }'
 ```
 
-Expected:
+Expected (truncated):
 ```json
 {
-  "discount": 20,
-  "discountCode": "XJ8P9Q2R-20%"
+  "upstreamStatus": 202,
+  "messageId": "abc123",
+  "channel": "WABA",
+  "recipient": "919999999999"
 }
 ```
+
+`upstreamResponse` will include the raw response body returned by your messaging API.
 
 ---
 

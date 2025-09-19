@@ -4,13 +4,17 @@ import Postmonger from 'postmonger';
 const connection = new Postmonger.Session();
 let activity = null;
 let isHydrating = false;
+const defaultMessageBody = 'Hey {{Contact.Attribute.DE.FirstName}}, surprise! Enjoy 60% off on your next purchase with code WELCOME60.';
+const defaultMediaUrl = 'https://images.unsplash.com/photo-1549880338-65ddcdfd017b';
+const defaultButtonLabel = 'Shop Now';
+
 let formState = {
-  campaignName: '',
-  senderName: '',
+  campaignName: 'Adidas India – Welcome Offer',
+  senderName: 'Adidas India',
   messageTemplate: 'promo',
-  messageBody: '',
-  mediaUrl: '',
-  buttonLabel: '',
+  messageBody: defaultMessageBody,
+  mediaUrl: defaultMediaUrl,
+  buttonLabel: defaultButtonLabel,
   sendType: 'immediate',
   sendSchedule: '',
 };
@@ -30,9 +34,9 @@ const liveFields = [
 ];
 const previewDefaults = {
   templateLabel: 'Seasonal promotion',
-  campaignName: 'Campaign preview',
-  senderName: 'Acme Retail',
-  messageBody: 'Hey there! Craft your message to see the preview update in real time.',
+  campaignName: 'Adidas India – Welcome Offer',
+  senderName: 'Adidas India',
+  messageBody: defaultMessageBody,
 };
 
 function enableDone(enabled) {

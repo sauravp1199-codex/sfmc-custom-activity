@@ -10,15 +10,46 @@ module.exports = function configJSON(req) {
     },
     lang: {
       'en-US': {
-        name: 'Custom Activity',
-        description: 'Minimal REST activity template.'
+        name: 'WhatsApp Message Activity',
+        description: 'Trigger personalised WhatsApp journeys with media and quick replies.'
       }
     },
     arguments: {
       execute: {
         inArguments: [
-          // Provide defaults; real values are set in the UI or data bindings
-          { discount: 10 }
+          {
+            channel: 'WABA'
+          },
+          {
+            campaignName: 'Adidas India – Welcome Offer'
+          },
+          {
+            senderName: 'Adidas India'
+          },
+          {
+            messageTemplate: 'promo'
+          },
+          {
+            messageBody: 'Hey {{Contact.Attribute.DE.FirstName}}, surprise! Enjoy 60% off on your next purchase with code WELCOME60.'
+          },
+          {
+            mediaUrl: 'https://images.unsplash.com/photo-1549880338-65ddcdfd017b'
+          },
+          {
+            buttonLabel: 'Shop Now'
+          },
+          {
+            sendType: 'immediate'
+          },
+          {
+            recipientTo: '919999999999'
+          },
+          {
+            senderFrom: '919999999999'
+          },
+          {
+            metadataVersion: 'v1.0.9'
+          }
         ],
         outArguments: [],
         url: `${base}/modules/custom-activity/execute`,
@@ -42,13 +73,29 @@ module.exports = function configJSON(req) {
       arguments: {
         execute: {
           inArguments: [
-            { discount: { dataType: 'Number', direction: 'in' } },
-            { email: { dataType: 'Text', direction: 'in' } },
-            { mobile: { dataType: 'Text', direction: 'in' } }
+            { channel: { dataType: 'Text', direction: 'in' } },
+            { campaignName: { dataType: 'Text', direction: 'in' } },
+            { senderName: { dataType: 'Text', direction: 'in' } },
+            { messageTemplate: { dataType: 'Text', direction: 'in' } },
+            { messageBody: { dataType: 'Text', direction: 'in' } },
+            { mediaUrl: { dataType: 'Text', direction: 'in' } },
+            { buttonLabel: { dataType: 'Text', direction: 'in' } },
+            { sendType: { dataType: 'Text', direction: 'in' } },
+            { sendSchedule: { dataType: 'Text', direction: 'in' } },
+            { contentType: { dataType: 'Text', direction: 'in' } },
+            { previewUrl: { dataType: 'Boolean', direction: 'in' } },
+            { recipientTo: { dataType: 'Text', direction: 'in' } },
+            { recipientType: { dataType: 'Text', direction: 'in' } },
+            { customerReference: { dataType: 'Text', direction: 'in' } },
+            { messageTag1: { dataType: 'Text', direction: 'in' } },
+            { conversationId: { dataType: 'Text', direction: 'in' } },
+            { senderFrom: { dataType: 'Text', direction: 'in' } },
+            { webHookDNId: { dataType: 'Text', direction: 'in' } },
+            { metadataVersion: { dataType: 'Text', direction: 'in' } }
           ],
           outArguments: [
-            { discountCode: { dataType: 'Text', direction: 'out', access: 'visible' } },
-            { discount: { dataType: 'Number', direction: 'out', access: 'visible' } }
+            { upstreamStatus: { dataType: 'Number', direction: 'out', access: 'visible' } },
+            { messageId: { dataType: 'Text', direction: 'out', access: 'visible' } }
           ]
         }
       }

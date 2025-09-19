@@ -10,7 +10,7 @@ const app = express();
 app.use(bodyParser.json());
 
 // Static “home” (optional landing)
-app.use('/', express.static(path.join(__dirname, 'modules/custom-activity/html')));
+app.use('/', express.static(path.join(__dirname, 'public')));
 
 // Mount the custom activity module
 require('./modules/custom-activity/app/app')(app, {

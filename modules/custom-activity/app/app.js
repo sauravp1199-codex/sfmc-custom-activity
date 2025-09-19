@@ -4,8 +4,15 @@ const path = require('path');
 const axios = require('axios');
 // const jwt = require('jsonwebtoken'); // if you plan to verify JB JWT
 
+const DEFAULT_PROD_API_URL = 'https://sfmc.comsensetechnologies.com/api/message';
+const DEFAULT_DEV_API_URL = 'http://localhost:3000/api/message';
+
 const {
-  API_URL = 'https://sfmc.comsensetechnologies.com/api/message',
+  NODE_ENV,
+  APP_ENV,
+  API_URL: API_URL_OVERRIDE,
+  API_URL_PROD,
+  API_URL_DEV,
   API_TOKEN,
   API_BASIC_TOKEN = 'YWRtaW46UGFzc3cwcmQh',
   API_USERNAME,
@@ -19,6 +26,13 @@ const {
   MESSAGE_WEBHOOK_DNID = '1001',
   MESSAGE_METADATA_VERSION = 'v1.0.9',
 } = process.env;
+
+const environmentName = (APP_ENV || NODE_ENV || 'development').toLowerCase();
+const isProductionEnvironment = ['production', 'prod', 'live'].includes(environmentName);
+const API_URL = API_URL_OVERRIDE
+  || (isProductionEnvironment
+    ? (API_URL_PROD || DEFAULT_PROD_API_URL)
+    : (API_URL_DEV || DEFAULT_DEV_API_URL));
 
 const REQUEST_TIMEOUT = Number.isNaN(Number(API_TIMEOUT))
   ? 10000

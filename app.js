@@ -4,6 +4,8 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 
+const DEFAULT_ACTIVITY_PATH = '/modules/custom-activity';
+
 const app = express();
 
 // Respect X-Forwarded-* headers when running behind a proxy/load balancer
@@ -16,12 +18,61 @@ app.use(bodyParser.json());
 // Static “home” (optional landing)
 app.use('/', express.static(path.join(__dirname, 'public')));
 
+const activityMountPath = resolveActivityMountPath();
+
 // Mount the custom activity module
 require('./modules/custom-activity/app/app')(app, {
-  rootDirectory: __dirname
+  rootDirectory: __dirname,
+  mountPath: activityMountPath
 });
 
 const PORT = process.env.PORT || 1111;
 app.listen(PORT, () => {
   console.log(`SFMC Custom Activity server listening on http://localhost:${PORT}`);
 });
+
+function resolveActivityMountPath() {
+  const explicitPath = normaliseMountPath(process.env.ACTIVITY_MOUNT_PATH);
+  if (explicitPath) {
+    return explicitPath;
+  }
+
+  const fromPublicUrl = parsePathFromUrl(process.env.ACTIVITY_PUBLIC_URL || process.env.PUBLIC_URL);
+  if (fromPublicUrl) {
+    return fromPublicUrl;
+  }
+
+  return DEFAULT_ACTIVITY_PATH;
+}
+
+function parsePathFromUrl(candidate) {
+  if (!candidate || typeof candidate !== 'string') {
+    return null;
+  }
+
+  try {
+    const url = new URL(candidate.trim());
+    return normaliseMountPath(url.pathname);
+  } catch (err) {
+    return null;
+  }
+}
+
+function normaliseMountPath(pathname) {
+  if (!pathname || typeof pathname !== 'string') {
+    return null;
+  }
+
+  const trimmed = pathname.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed === '/') {
+    return '/';
+  }
+
+  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  const withoutTrailingSlash = withLeadingSlash.replace(/\/+$/, '');
+  return withoutTrailingSlash || '/';
+}

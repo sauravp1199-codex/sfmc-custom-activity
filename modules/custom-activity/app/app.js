@@ -5,6 +5,7 @@ const axios = require('axios');
 const crypto = require('crypto');
 // const jwt = require('jsonwebtoken'); // if you plan to verify JB JWT
 
+const DEFAULT_ACTIVITY_PATH = '/modules/custom-activity';
 const DEFAULT_PROD_API_URL = 'https://sfmc.comsensetechnologies.com/api/message';
 const DEFAULT_DEV_API_URL = 'http://localhost:3000/api/message';
 
@@ -43,19 +44,26 @@ const DEFAULT_PREVIEW_URL = coerceBoolean(MESSAGE_PREVIEW_URL, false);
 
 module.exports = function(app, options = {}) {
   const publicDirectory = path.join(options.rootDirectory, 'public');
+  const mountPath = normaliseMountPath(options.mountPath) || DEFAULT_ACTIVITY_PATH;
+  const route = (segment) => joinMountPath(mountPath, segment);
 
-  app.use(
-    '/modules/custom-activity',
-    express.static(publicDirectory, { index: false })
-  );
+  if (mountPath !== '/') {
+    app.use(
+      mountPath,
+      express.static(publicDirectory, { index: false })
+    );
 
-  // Redirect base → UI
-  app.get('/modules/custom-activity/', (req, res) =>
-    res.redirect('/modules/custom-activity/index.html')
-  );
+    const baseRoute = route('');
+    const baseRouteWithSlash = `${baseRoute}/`;
+    const indexRoute = route('index.html');
+
+    app.get([baseRoute, baseRouteWithSlash], (req, res) =>
+      res.redirect(indexRoute)
+    );
+  }
 
   // UI (config iframe)
-  app.get('/modules/custom-activity/index.html', (req, res) =>
+  app.get(route('index.html'), (req, res) =>
     res.sendFile(path.join(publicDirectory, 'index.html'))
   );
 
@@ -63,17 +71,17 @@ module.exports = function(app, options = {}) {
   const configJSON = require('../config/config-json');
   const sendConfigJSON = (req, res) => res.status(200).json(configJSON(req));
 
-  app.get('/modules/custom-activity/config.json', sendConfigJSON);
+  app.get(route('config.json'), sendConfigJSON);
   app.get('/config.json', sendConfigJSON);
 
   // Save (when user hits “Done” in inspector)
-  app.post('/modules/custom-activity/save', (req, res) => {
+  app.post(route('save'), (req, res) => {
     console.log('save payload:', JSON.stringify(req.body));
     return res.status(200).json({});
   });
 
   // Validate (pre-publish)
-  app.post('/modules/custom-activity/validate', (req, res) => {
+  app.post(route('validate'), (req, res) => {
     console.log('validate payload:', JSON.stringify(req.body));
     const inArgs = collectInArguments(req.body);
     const validation = validateInArguments(inArgs);
@@ -86,19 +94,19 @@ module.exports = function(app, options = {}) {
   });
 
   // Publish (journey activated)
-  app.post('/modules/custom-activity/publish', (req, res) => {
+  app.post(route('publish'), (req, res) => {
     console.log('publish payload:', JSON.stringify(req.body));
     return res.status(200).json({});
   });
 
   // Stop (journey stopped)
-  app.post('/modules/custom-activity/stop', (req, res) => {
+  app.post(route('stop'), (req, res) => {
     console.log('stop payload:', JSON.stringify(req.body));
     return res.status(200).json({});
   });
 
   // Execute (runtime: contact reaches step)
-  app.post('/modules/custom-activity/execute', async (req, res) => {
+  app.post(route('execute'), async (req, res) => {
     try {
       // Optional: verify JWT (if you configure JB to send it)
       // const token = req.headers['authorization']?.split(' ')[1];
@@ -490,4 +498,42 @@ function generateMessageId() {
   }
 
   return crypto.randomBytes(16).toString('hex');
+}
+
+function normaliseMountPath(pathname) {
+  if (!pathname || typeof pathname !== 'string') {
+    return null;
+  }
+
+  const trimmed = pathname.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed === '/') {
+    return '/';
+  }
+
+  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  const withoutTrailingSlash = withLeadingSlash.replace(/\/+$/, '');
+  return withoutTrailingSlash || '/';
+}
+
+function joinMountPath(base, segment = '') {
+  const normalisedBase = base === '/' ? '' : base?.replace?.(/\/+$/, '') || '';
+  const normalisedSegment = segment
+    ? String(segment).replace(/^\/+/, '')
+    : '';
+
+  if (!normalisedBase && !normalisedSegment) {
+    return '/';
+  }
+
+  if (!normalisedSegment) {
+    return normalisedBase || '/';
+  }
+
+  return normalisedBase
+    ? `${normalisedBase}/${normalisedSegment}`
+    : `/${normalisedSegment}`;
 }

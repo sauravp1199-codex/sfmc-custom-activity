@@ -1,6 +1,11 @@
 // modules/custom-activity/config/config-json.js
 const DEFAULT_ACTIVITY_PATH = '/modules/custom-activity';
 
+const envPublicUrl = process.env.ACTIVITY_PUBLIC_URL || process.env.PUBLIC_URL;
+const envConfig = parsePublicUrl(envPublicUrl);
+const ENV_ORIGIN = envConfig?.origin;
+const ENV_PATH = envConfig?.path;
+
 module.exports = function configJSON(req) {
   const origin = resolveOrigin(req);
   const activityPath = resolveActivityPath(req);
@@ -109,6 +114,10 @@ module.exports = function configJSON(req) {
 };
 
 function resolveOrigin(req = {}) {
+  if (ENV_ORIGIN) {
+    return ENV_ORIGIN;
+  }
+
   const forwardedProto = (req.headers?.['x-forwarded-proto'] || '')
     .split(',')[0]
     .trim();
@@ -126,6 +135,10 @@ function resolveOrigin(req = {}) {
 }
 
 function resolveActivityPath(req = {}) {
+  if (ENV_PATH) {
+    return ENV_PATH;
+  }
+
   const rawPath = (req.originalUrl || req.url || '')
     .split('?')[0]
     .replace(/\/config\.json$/i, '');
@@ -179,4 +192,32 @@ function toAbsoluteUrl(origin = {}, ...segments) {
 
   const serialised = base.toString();
   return normalisedSegments.length ? serialised.replace(/\/$/, '') : serialised;
+}
+
+function parsePublicUrl(candidate) {
+  if (!candidate || typeof candidate !== 'string') {
+    return null;
+  }
+
+  const trimmed = candidate.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    if (!url.hostname) {
+      return null;
+    }
+
+    return {
+      origin: {
+        protocol: url.protocol.replace(/:$/, '') || 'https',
+        host: url.host,
+      },
+      path: normalisePath(url.pathname),
+    };
+  } catch (err) {
+    return null;
+  }
 }

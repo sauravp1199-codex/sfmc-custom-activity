@@ -1,8 +1,7 @@
 // modules/custom-activity/config/config-json.js
 const DEFAULT_ACTIVITY_PATH = '/modules/custom-activity';
-const DEFAULT_PUBLIC_URL = 'https://sfmc.comsensetechnologies.com/modules/custom-activity';
 
-const envPublicUrl = process.env.ACTIVITY_PUBLIC_URL || process.env.PUBLIC_URL || DEFAULT_PUBLIC_URL;
+const envPublicUrl = process.env.ACTIVITY_PUBLIC_URL ?? process.env.PUBLIC_URL;
 const envConfig = parsePublicUrl(envPublicUrl);
 const ENV_ORIGIN = envConfig?.origin;
 const ENV_PATH = envConfig?.path;

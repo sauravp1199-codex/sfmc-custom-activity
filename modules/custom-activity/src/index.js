@@ -409,6 +409,20 @@ function onDone() {
     },
   };
 
+  // Show success message
+  const statusElement = document.createElement('div');
+  statusElement.className = 'status-message success';
+  statusElement.innerHTML = `
+    <div class="icon">✓</div>
+    <div class="message">Configuration saved successfully!</div>
+  `;
+  document.body.appendChild(statusElement);
+
+  // Remove status message after 3 seconds
+  setTimeout(() => {
+    statusElement.remove();
+  }, 3000);
+
   connection.trigger('updateActivity', updated);
   connection.trigger('setActivityDirtyState', false);
   connection.trigger('requestInspectorClose');

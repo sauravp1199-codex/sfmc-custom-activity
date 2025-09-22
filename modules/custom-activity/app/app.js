@@ -121,13 +121,47 @@ module.exports = function(app, options = {}) {
         timeout: REQUEST_TIMEOUT,
       });
 
-      const out = buildExecuteResponse(response, payload);
+      // Validate and format the API response
+      const responseData = response.data;
+      
+      // Build a standardized success response
+      const out = {
+        success: true,
+        messageId: responseData.messageId || responseData.id,
+        channel: payload.message.channel || MESSAGE_CHANNEL,
+        recipient: payload.recipient.to,
+        timestamp: new Date().toISOString(),
+        upstreamStatus: response.status,
+        upstreamResponse: responseData,
+        metadata: {
+          journeyId: req.body.journeyId,
+          activityId: req.body.activityId,
+          contactKey: req.body.keyValue,
+          definitionInstanceId: req.body.definitionInstanceId
+        }
+      };
 
       console.log('execute upstream response:', out);
       return res.status(200).json(out);
     } catch (err) {
       const status = err?.response?.status;
       const data = err?.response?.data;
+      
+      console.error('execute error:', {
+        status,
+        data,
+        message: err.message
+      });
+
+      // Return a structured error response
+      return res.status(status || 500).json({
+        success: false,
+        error: {
+          status: status || 500,
+          message: data?.message || err.message || 'An unexpected error occurred',
+          code: data?.code || 'UNKNOWN_ERROR'
+        }
+      });
       console.error('execute error:', status, err?.message, data ? JSON.stringify(data) : '');
 
       const message = data?.message || err?.message || 'Temporary failure';

@@ -72,6 +72,7 @@ PORT=1111
 
 
 ACTIVITY_PUBLIC_URL=https://sfmc.comsensetechnologies.com/modules/custom-activity
+ACTIVITY_MOUNT_PATH=/modules/custom-activity
 API_URL_DEV=http://localhost:3000/api/message
 API_URL_PROD=https://sfmc.comsensetechnologies.com/api/message
 # API_URL=                        # optional explicit override for both envs
@@ -92,7 +93,7 @@ MESSAGE_METADATA_VERSION=v1.0.9
 # JB_PUBLIC_KEY=-----BEGIN PUBLIC KEY----- (optional, for JWT verification)
 ```
 
-Set `ACTIVITY_PUBLIC_URL` when Journey Builder needs to see a specific HTTPS base URL (for example when running behind a reverse proxy or tunnelling a local instance).
+Set `ACTIVITY_PUBLIC_URL` when Journey Builder needs to see a specific HTTPS base URL (for example when running behind a reverse proxy or tunnelling a local instance). `ACTIVITY_MOUNT_PATH` controls where the custom activity is mounted inside Express – keep it aligned with the path portion of `ACTIVITY_PUBLIC_URL` (default: `/modules/custom-activity`).
 
 By default the service uses the production URL. Set `APP_ENV=development` (or `NODE_ENV=development`) when you specifically want to call a local mock. You can still provide a single `API_URL` to override both when needed.
 

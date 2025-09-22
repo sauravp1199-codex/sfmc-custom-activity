@@ -420,7 +420,7 @@ function init() {
   connection.on('requestedSchema', onRequestedSchema);
   connection.trigger('ready');
   connection.trigger('requestSchema');
-  connection.trigger('requestedInteraction');
+  connection.trigger('requestInteraction');
 }
 
 document.addEventListener('DOMContentLoaded', init);

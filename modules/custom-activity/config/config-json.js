@@ -1,11 +1,15 @@
 // modules/custom-activity/config/config-json.js
+const DEFAULT_ACTIVITY_PATH = '/modules/custom-activity';
+
 module.exports = function configJSON(req) {
-  const base = `https://${req.headers.host}`;
+  const origin = resolveOrigin(req);
+  const activityPath = resolveActivityPath(req);
+
   return {
     workflowApiVersion: '1.1',
     type: 'REST',
     metaData: {
-      icon: `images/icon.svg`,
+      icon: toAbsoluteUrl(origin, activityPath, 'images/icon.svg'),
       category: 'customer'
     },
     lang: {
@@ -52,17 +56,17 @@ module.exports = function configJSON(req) {
           }
         ],
         outArguments: [],
-        url: `${base}/modules/custom-activity/execute`,
+        url: toAbsoluteUrl(origin, activityPath, 'execute'),
         timeout: 10000,
         retryCount: 3,
         retryDelay: 1000
       }
     },
     configurationArguments: {
-      save: { url: `${base}/modules/custom-activity/save` },
-      publish: { url: `${base}/modules/custom-activity/publish` },
-      validate: { url: `${base}/modules/custom-activity/validate` },
-      stop: { url: `${base}/modules/custom-activity/stop` }
+      save: { url: toAbsoluteUrl(origin, activityPath, 'save') },
+      publish: { url: toAbsoluteUrl(origin, activityPath, 'publish') },
+      validate: { url: toAbsoluteUrl(origin, activityPath, 'validate') },
+      stop: { url: toAbsoluteUrl(origin, activityPath, 'stop') }
     },
     userInterfaces: {
       configInspector: {
@@ -102,3 +106,76 @@ module.exports = function configJSON(req) {
     }
   };
 };
+
+function resolveOrigin(req = {}) {
+  const forwardedProto = (req.headers?.['x-forwarded-proto'] || '')
+    .split(',')[0]
+    .trim();
+  const forwardedHost = (req.headers?.['x-forwarded-host'] || '')
+    .split(',')[0]
+    .trim();
+
+  const protocol = forwardedProto || req.protocol || 'https';
+  const host = forwardedHost || req.get?.('host') || req.headers?.host || '';
+
+  return {
+    protocol: protocol.replace(/:$/, '') || 'https',
+    host
+  };
+}
+
+function resolveActivityPath(req = {}) {
+  const rawPath = (req.originalUrl || req.url || '')
+    .split('?')[0]
+    .replace(/\/config\.json$/i, '');
+
+  const fromRequest = normalisePath(rawPath);
+  if (fromRequest) {
+    return fromRequest;
+  }
+
+  const fromEnv = normalisePath(process.env.ACTIVITY_MOUNT_PATH);
+  if (fromEnv) {
+    return fromEnv;
+  }
+
+  return DEFAULT_ACTIVITY_PATH;
+}
+
+function normalisePath(pathname) {
+  if (!pathname || pathname === '/') {
+    return '';
+  }
+
+  const trimmed = pathname.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const withoutTrailingSlash = trimmed.replace(/\/+$/, '');
+  if (!withoutTrailingSlash) {
+    return '';
+  }
+
+  return withoutTrailingSlash.startsWith('/')
+    ? withoutTrailingSlash
+    : `/${withoutTrailingSlash}`;
+}
+
+function toAbsoluteUrl(origin = {}, ...segments) {
+  const normalisedSegments = segments
+    .filter((segment) => segment !== undefined && segment !== null && segment !== '')
+    .map((segment) => String(segment))
+    .map((segment) => segment.replace(/^\/+/, '').replace(/\/+$/, ''))
+    .filter((segment) => segment.length > 0);
+
+  if (!origin.host) {
+    return `/${normalisedSegments.join('/')}`;
+  }
+
+  const base = new URL(`${origin.protocol || 'https'}://${origin.host}`);
+  base.pathname = normalisedSegments.length ? `/${normalisedSegments.join('/')}` : '/';
+
+  const serialised = base.toString();
+  return normalisedSegments.length ? serialised.replace(/\/$/, '') : serialised;
+}

@@ -61,9 +61,10 @@ module.exports = function(app, options = {}) {
 
   // Dynamic config.json
   const configJSON = require('../config/config-json');
-  app.get('/modules/custom-activity/config.json', (req, res) =>
-    res.status(200).json(configJSON(req))
-  );
+  const sendConfigJSON = (req, res) => res.status(200).json(configJSON(req));
+
+  app.get('/modules/custom-activity/config.json', sendConfigJSON);
+  app.get('/config.json', sendConfigJSON);
 
   // Save (when user hits “Done” in inspector)
   app.post('/modules/custom-activity/save', (req, res) => {

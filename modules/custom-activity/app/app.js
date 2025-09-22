@@ -129,8 +129,8 @@ module.exports = function(app, options = {}) {
       const out = {
         success: true,
         messageId: responseData.messageId || responseData.id,
-        channel: payload.message.channel || MESSAGE_CHANNEL,
-        recipient: payload.recipient.to,
+        channel: payload?.message?.channel || MESSAGE_CHANNEL,
+        recipient: payload?.message?.recipient?.to,
         timestamp: new Date().toISOString(),
         upstreamStatus: response.status,
         upstreamResponse: responseData,

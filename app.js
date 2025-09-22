@@ -6,6 +6,10 @@ const bodyParser = require('body-parser');
 
 const app = express();
 
+// Respect X-Forwarded-* headers when running behind a proxy/load balancer
+// so we can correctly determine the external protocol + host for config.json.
+app.set('trust proxy', true);
+
 // JSON parsing
 app.use(bodyParser.json());
 

@@ -70,6 +70,7 @@ module.exports = function configJSON(req) {
     },
     userInterfaces: {
       configInspector: {
+        url: toAbsoluteUrl(origin, activityPath, 'index.html'),
         size: 'scm-lg' // inspector size
       }
     },

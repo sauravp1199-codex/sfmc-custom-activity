@@ -3,6 +3,11 @@ const express = require('express');
 const path = require('path');
 const axios = require('axios');
 const crypto = require('crypto');
+
+const {
+  applyCrossOriginResourcePolicyHeader,
+  withCrossOriginResourcePolicy,
+} = require('../../../lib/cross-origin-resource-policy');
 // const jwt = require('jsonwebtoken'); // if you plan to verify JB JWT
 
 const DEFAULT_ACTIVITY_PATH = '/modules/custom-activity';
@@ -50,26 +55,34 @@ module.exports = function(app, options = {}) {
   if (mountPath !== '/') {
     app.use(
       mountPath,
-      express.static(publicDirectory, { index: false })
+      express.static(publicDirectory, {
+        index: false,
+        setHeaders: applyCrossOriginResourcePolicyHeader,
+      })
     );
 
     const baseRoute = route('');
     const baseRouteWithSlash = `${baseRoute}/`;
     const indexRoute = route('index.html');
 
-    app.get([baseRoute, baseRouteWithSlash], (req, res) =>
-      res.redirect(indexRoute)
-    );
+    app.get([baseRoute, baseRouteWithSlash], (req, res) => {
+      withCrossOriginResourcePolicy(res);
+      res.redirect(indexRoute);
+    });
   }
 
   // UI (config iframe)
-  app.get(route('index.html'), (req, res) =>
-    res.sendFile(path.join(publicDirectory, 'index.html'))
-  );
+  app.get(route('index.html'), (req, res) => {
+    withCrossOriginResourcePolicy(res);
+    res.sendFile(path.join(publicDirectory, 'index.html'));
+  });
 
   // Dynamic config.json
   const configJSON = require('../config/config-json');
-  const sendConfigJSON = (req, res) => res.status(200).json(configJSON(req));
+  const sendConfigJSON = (req, res) => {
+    withCrossOriginResourcePolicy(res);
+    return res.status(200).json(configJSON(req));
+  };
 
   app.get(route('config.json'), sendConfigJSON);
   app.get('/config.json', sendConfigJSON);
@@ -77,6 +90,7 @@ module.exports = function(app, options = {}) {
   // Save (when user hits “Done” in inspector)
   app.post(route('save'), (req, res) => {
     console.log('save payload:', JSON.stringify(req.body));
+    withCrossOriginResourcePolicy(res);
     return res.status(200).json({});
   });
 
@@ -87,21 +101,25 @@ module.exports = function(app, options = {}) {
     const validation = validateInArguments(inArgs);
     if (!validation.valid) {
       console.error('validate error:', validation.message);
+      withCrossOriginResourcePolicy(res);
       return res.status(400).json({ message: validation.message });
     }
 
+    withCrossOriginResourcePolicy(res);
     return res.status(200).json({});
   });
 
   // Publish (journey activated)
   app.post(route('publish'), (req, res) => {
     console.log('publish payload:', JSON.stringify(req.body));
+    withCrossOriginResourcePolicy(res);
     return res.status(200).json({});
   });
 
   // Stop (journey stopped)
   app.post(route('stop'), (req, res) => {
     console.log('stop payload:', JSON.stringify(req.body));
+    withCrossOriginResourcePolicy(res);
     return res.status(200).json({});
   });
 
@@ -116,6 +134,7 @@ module.exports = function(app, options = {}) {
       const validation = validateInArguments(inArgs);
       if (!validation.valid) {
         console.error('execute validation error:', validation.message);
+        withCrossOriginResourcePolicy(res);
         return res.status(400).json({ message: validation.message });
       }
 
@@ -151,6 +170,7 @@ module.exports = function(app, options = {}) {
       };
 
       console.log('execute upstream response:', out);
+      withCrossOriginResourcePolicy(res);
       return res.status(200).json(out);
     } catch (err) {
       const status = err?.response?.status || 500;
@@ -165,6 +185,7 @@ module.exports = function(app, options = {}) {
         data
       });
 
+      withCrossOriginResourcePolicy(res);
       return res.status(status).json({
         success: false,
         error: {
@@ -183,12 +204,14 @@ module.exports = function(app, options = {}) {
     const authError = ensureInboundAuthorization(req?.headers?.authorization);
     if (authError) {
       console.error('api/message auth error:', authError.message);
+      withCrossOriginResourcePolicy(res);
       return res.status(authError.status).json({ message: authError.message });
     }
 
     const validation = validateInboundMessage(req?.body);
     if (!validation.valid) {
       console.error('api/message validation error:', validation.message);
+      withCrossOriginResourcePolicy(res);
       return res.status(400).json({ message: validation.message });
     }
 
@@ -196,6 +219,7 @@ module.exports = function(app, options = {}) {
     console.log('api/message payload:', JSON.stringify(payload));
 
     const responseBody = buildMockMessageResponse(payload);
+    withCrossOriginResourcePolicy(res);
     return res.status(202).json(responseBody);
   });
 };

@@ -131,7 +131,7 @@ function resolveOrigin(req = {}) {
     return ENV_ORIGIN;
   }
 
-  const forwardedProto = firstHeaderValue(req.headers?.['x-forwarded-proto']);
+  const forwardedProto = resolveForwardedProto(req.headers?.['x-forwarded-proto']);
   const forwardedHost = firstHeaderValue(req.headers?.['x-forwarded-host']);
 
   const host = forwardedHost || req.get?.('host') || req.headers?.host || '';
@@ -204,7 +204,8 @@ function toAbsoluteUrl(origin = {}, ...segments) {
     return `/${normalisedSegments.join('/')}`;
   }
 
-  const protocol = normaliseProtocol(origin.protocol) || 'https';
+  const protocol = resolveExternalProtocol(origin.protocol, origin.host)
+    || (isLocalHost(origin.host) ? 'http' : 'https');
   const base = new URL(`${protocol}://${origin.host}`);
   base.pathname = normalisedSegments.length ? `/${normalisedSegments.join('/')}` : '/';
 
@@ -230,7 +231,8 @@ function parsePublicUrl(candidate) {
 
     return {
       origin: {
-        protocol: url.protocol.replace(/:$/, '') || 'https',
+        protocol: resolveExternalProtocol(url.protocol, url.host)
+          || (isLocalHost(url.host) ? 'http' : 'https'),
         host: url.host,
       },
       path: normalisePath(url.pathname),
@@ -243,21 +245,30 @@ function parsePublicUrl(candidate) {
 function resolveProtocol({ forwardedProto, requestProtocol, host }) {
   const candidates = [forwardedProto, requestProtocol];
   for (const candidate of candidates) {
-    const normalised = normaliseProtocol(candidate);
-    if (!normalised) {
-      continue;
-    }
-
-    if (normalised === 'https') {
-      return 'https';
-    }
-
-    if (normalised === 'http' && isLocalHost(host)) {
-      return 'http';
+    const resolved = resolveExternalProtocol(candidate, host);
+    if (resolved) {
+      return resolved;
     }
   }
 
   return isLocalHost(host) ? 'http' : 'https';
+}
+
+function resolveExternalProtocol(candidate, host) {
+  const normalised = normaliseProtocol(candidate);
+  if (!normalised) {
+    return null;
+  }
+
+  if (normalised === 'https') {
+    return 'https';
+  }
+
+  if (normalised === 'http') {
+    return isLocalHost(host) ? 'http' : 'https';
+  }
+
+  return null;
 }
 
 function normaliseProtocol(candidate) {
@@ -291,6 +302,49 @@ function firstHeaderValue(value) {
   }
 
   return value.split(',')[0].trim();
+}
+
+function resolveForwardedProto(value) {
+  if (!value) {
+    return '';
+  }
+
+  const tokens = [];
+  const appendTokens = (item) => {
+    if (item === undefined || item === null) {
+      return;
+    }
+
+    String(item)
+      .split(',')
+      .forEach((token) => tokens.push(token.trim()));
+  };
+
+  if (Array.isArray(value)) {
+    value.forEach(appendTokens);
+  } else {
+    appendTokens(value);
+  }
+
+  const filtered = tokens.filter(Boolean);
+  if (filtered.length === 0) {
+    return '';
+  }
+
+  for (const token of filtered) {
+    if (normaliseProtocol(token) === 'https') {
+      return 'https';
+    }
+  }
+
+  for (const token of filtered) {
+    const normalised = normaliseProtocol(token);
+    if (normalised) {
+      return normalised;
+    }
+  }
+
+  return '';
 }
 
 function isLocalHost(host) {

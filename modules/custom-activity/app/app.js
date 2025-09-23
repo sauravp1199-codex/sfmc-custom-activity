@@ -102,11 +102,14 @@ module.exports = function(app, options = {}) {
     if (!validation.valid) {
       console.error('validate error:', validation.message);
       withCrossOriginResourcePolicy(res);
-      return res.status(400).json({ message: validation.message });
+      return res.status(200).json({
+        success: false,
+        validationErrors: [validation.message],
+      });
     }
 
     withCrossOriginResourcePolicy(res);
-    return res.status(200).json({});
+    return res.status(200).json({ success: true });
   });
 
   // Publish (journey activated)

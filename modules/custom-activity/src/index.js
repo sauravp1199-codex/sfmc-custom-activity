@@ -286,7 +286,11 @@ function onInitActivity(data) {
   hydrateField('recipientTo', inArgs.recipientTo || inArgs.mobile || inArgs.to);
 
   handleInputChange();
-  enableDone(false);
+  const hydratedValid = isValid(formState);
+  const hasInArgs = Object.keys(inArgs || {}).length > 0;
+  const storedValid = hasInArgs ? isValid(inArgs) : false;
+  const shouldEnableDone = hydratedValid || (activity?.metaData?.isConfigured && storedValid);
+  enableDone(shouldEnableDone);
   isHydrating = false;
 }
 

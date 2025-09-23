@@ -228,13 +228,35 @@ module.exports = function(app, options = {}) {
 };
 
 function collectInArguments(payload = {}) {
-  const candidate = Array.isArray(payload?.inArguments)
-    ? payload.inArguments
-    : Array.isArray(payload?.arguments?.execute?.inArguments)
-      ? payload.arguments.execute.inArguments
-      : [];
+  const candidateArrays = [];
 
-  return candidate.reduce((acc, obj) => Object.assign(acc, obj), {});
+  const pushIfArray = (value) => {
+    if (Array.isArray(value) && value.length > 0) {
+      candidateArrays.push(value);
+    }
+  };
+
+  const addActivity = (activity) => {
+    pushIfArray(activity?.arguments?.execute?.inArguments);
+  };
+
+  pushIfArray(payload?.inArguments);
+  pushIfArray(payload?.arguments?.execute?.inArguments);
+  addActivity(payload?.activity);
+  addActivity(payload?.activityConfig);
+
+  if (Array.isArray(payload?.activities)) {
+    payload.activities.forEach(addActivity);
+  }
+
+  if (candidateArrays.length === 0) {
+    return {};
+  }
+
+  return candidateArrays
+    .flat()
+    .filter((item) => item && typeof item === 'object')
+    .reduce((acc, obj) => Object.assign(acc, obj), {});
 }
 
 function validateInArguments(inArgs = {}) {

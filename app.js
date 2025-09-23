@@ -4,6 +4,10 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 
+const {
+  applyCrossOriginResourcePolicyHeader,
+} = require('./lib/cross-origin-resource-policy');
+
 const DEFAULT_ACTIVITY_PATH = '/modules/custom-activity';
 
 const app = express();
@@ -16,7 +20,9 @@ app.set('trust proxy', true);
 app.use(bodyParser.json());
 
 // Static “home” (optional landing)
-app.use('/', express.static(path.join(__dirname, 'public')));
+app.use('/', express.static(path.join(__dirname, 'public'), {
+  setHeaders: applyCrossOriginResourcePolicyHeader,
+}));
 
 const activityMountPath = resolveActivityMountPath();
 

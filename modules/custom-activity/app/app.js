@@ -153,28 +153,26 @@ module.exports = function(app, options = {}) {
       console.log('execute upstream response:', out);
       return res.status(200).json(out);
     } catch (err) {
-      const status = err?.response?.status;
+      const status = err?.response?.status || 500;
       const data = err?.response?.data;
-      
+      const message = data?.message || err.message || 'An unexpected error occurred';
+      const code = data?.code || 'UNKNOWN_ERROR';
+
       console.error('execute error:', {
         status,
-        data,
-        message: err.message
+        message,
+        code,
+        data
       });
 
-      // Return a structured error response
-      return res.status(status || 500).json({
+      return res.status(status).json({
         success: false,
         error: {
-          status: status || 500,
-          message: data?.message || err.message || 'An unexpected error occurred',
-          code: data?.code || 'UNKNOWN_ERROR'
+          status,
+          message,
+          code
         }
       });
-      console.error('execute error:', status, err?.message, data ? JSON.stringify(data) : '');
-
-      const message = data?.message || err?.message || 'Temporary failure';
-      return res.status(500).json({ message });
     }
   });
 

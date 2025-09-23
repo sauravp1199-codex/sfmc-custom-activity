@@ -118,18 +118,18 @@ function resolveOrigin(req = {}) {
     return ENV_ORIGIN;
   }
 
-  const forwardedProto = (req.headers?.['x-forwarded-proto'] || '')
-    .split(',')[0]
-    .trim();
-  const forwardedHost = (req.headers?.['x-forwarded-host'] || '')
-    .split(',')[0]
-    .trim();
+  const forwardedProto = firstHeaderValue(req.headers?.['x-forwarded-proto']);
+  const forwardedHost = firstHeaderValue(req.headers?.['x-forwarded-host']);
 
-  const protocol = forwardedProto || req.protocol || 'https';
   const host = forwardedHost || req.get?.('host') || req.headers?.host || '';
+  const protocol = resolveProtocol({
+    forwardedProto,
+    requestProtocol: req.protocol,
+    host,
+  });
 
   return {
-    protocol: protocol.replace(/:$/, '') || 'https',
+    protocol,
     host
   };
 }
@@ -187,7 +187,8 @@ function toAbsoluteUrl(origin = {}, ...segments) {
     return `/${normalisedSegments.join('/')}`;
   }
 
-  const base = new URL(`${origin.protocol || 'https'}://${origin.host}`);
+  const protocol = normaliseProtocol(origin.protocol) || 'https';
+  const base = new URL(`${protocol}://${origin.host}`);
   base.pathname = normalisedSegments.length ? `/${normalisedSegments.join('/')}` : '/';
 
   const serialised = base.toString();
@@ -220,4 +221,111 @@ function parsePublicUrl(candidate) {
   } catch (err) {
     return null;
   }
+}
+
+function resolveProtocol({ forwardedProto, requestProtocol, host }) {
+  const candidates = [forwardedProto, requestProtocol];
+  for (const candidate of candidates) {
+    const normalised = normaliseProtocol(candidate);
+    if (!normalised) {
+      continue;
+    }
+
+    if (normalised === 'https') {
+      return 'https';
+    }
+
+    if (normalised === 'http' && isLocalHost(host)) {
+      return 'http';
+    }
+  }
+
+  return isLocalHost(host) ? 'http' : 'https';
+}
+
+function normaliseProtocol(candidate) {
+  if (!candidate) {
+    return null;
+  }
+
+  const trimmed = String(candidate).trim().toLowerCase().replace(/:$/, '');
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed === 'http' || trimmed === 'https') {
+    return trimmed;
+  }
+
+  return null;
+}
+
+function firstHeaderValue(value) {
+  if (!value) {
+    return '';
+  }
+
+  if (Array.isArray(value)) {
+    return String(value[0] ?? '').trim();
+  }
+
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  return value.split(',')[0].trim();
+}
+
+function isLocalHost(host) {
+  if (!host) {
+    return false;
+  }
+
+  const hostValue = String(host).trim();
+  if (!hostValue) {
+    return false;
+  }
+
+  let hostname = hostValue;
+
+  if (hostname.startsWith('[')) {
+    const closingIndex = hostname.indexOf(']');
+    hostname = closingIndex >= 0 ? hostname.slice(1, closingIndex) : hostname.slice(1);
+  }
+
+  if (hostname.includes(':') && !hostname.includes('.')) {
+    // IPv6 without explicit port handled above; leave as-is for ::1 check
+  } else if (hostname.includes(':')) {
+    hostname = hostname.split(':')[0];
+  }
+
+  hostname = hostname.trim().toLowerCase();
+  if (!hostname) {
+    return false;
+  }
+
+  if (['localhost', '127.0.0.1', '::1'].includes(hostname)) {
+    return true;
+  }
+
+  if (hostname.endsWith('.local')) {
+    return true;
+  }
+
+  if (hostname.startsWith('10.') || hostname.startsWith('192.168.')) {
+    return true;
+  }
+
+  if (hostname.startsWith('172.')) {
+    const secondOctet = Number(hostname.split('.')[1]);
+    if (!Number.isNaN(secondOctet) && secondOctet >= 16 && secondOctet <= 31) {
+      return true;
+    }
+  }
+
+  if (hostname.startsWith('127.')) {
+    return true;
+  }
+
+  return false;
 }

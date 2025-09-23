@@ -91,7 +91,7 @@ module.exports = function(app, options = {}) {
   app.post(route('save'), (req, res) => {
     console.log('save payload:', JSON.stringify(req.body));
     withCrossOriginResourcePolicy(res);
-    return res.status(200).json({});
+    return res.status(200).json({ success: true });
   });
 
   // Validate (pre-publish)
@@ -109,21 +109,21 @@ module.exports = function(app, options = {}) {
     }
 
     withCrossOriginResourcePolicy(res);
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, validationErrors: [] });
   });
 
   // Publish (journey activated)
   app.post(route('publish'), (req, res) => {
     console.log('publish payload:', JSON.stringify(req.body));
     withCrossOriginResourcePolicy(res);
-    return res.status(200).json({});
+    return res.status(200).json({ success: true });
   });
 
   // Stop (journey stopped)
   app.post(route('stop'), (req, res) => {
     console.log('stop payload:', JSON.stringify(req.body));
     withCrossOriginResourcePolicy(res);
-    return res.status(200).json({});
+    return res.status(200).json({ success: true });
   });
 
   // Execute (runtime: contact reaches step)

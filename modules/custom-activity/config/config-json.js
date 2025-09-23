@@ -3,6 +3,15 @@ const DEFAULT_ACTIVITY_PATH = '/modules/custom-activity';
 
 const envPublicUrl = process.env.ACTIVITY_PUBLIC_URL ?? process.env.PUBLIC_URL;
 const envConfig = parsePublicUrl(envPublicUrl);
+const envActivityExtensionKey =
+  process.env.ACTIVITY_EXTENSION_KEY ??
+  process.env.ACTIVITY_PACKAGE_ID ??
+  process.env.ACTIVITY_PACKAGE_KEY ??
+  null;
+const envContactAttributeKey =
+  process.env.ACTIVITY_CONTACT_DE_KEY ??
+  process.env.DATA_EXTENSION_KEY ??
+  '170E7DC6-4174-40F9-8166-8681DD916F9B';
 const ENV_ORIGIN = envConfig?.origin;
 const ENV_PATH = envConfig?.path;
 
@@ -11,6 +20,7 @@ module.exports = function configJSON(req) {
   const activityPath = resolveActivityPath(req);
 
   return {
+    key: envActivityExtensionKey,
     workflowApiVersion: '1.1',
     type: 'REST',
     metaData: {
@@ -39,7 +49,9 @@ module.exports = function configJSON(req) {
             messageTemplate: 'promo'
           },
           {
-            messageBody: 'Hey {{Contact.Attribute.DE.FirstName}}, surprise! Enjoy 60% off on your next purchase with code WELCOME60.'
+            messageBody: `Hey ${resolveContactAttribute(
+              'FirstName'
+            )}, surprise! Enjoy 60% off on your next purchase with code WELCOME60.`
           },
           {
             mediaUrl: 'https://images.unsplash.com/photo-1549880338-65ddcdfd017b'
@@ -51,7 +63,7 @@ module.exports = function configJSON(req) {
             sendType: 'immediate'
           },
           {
-            recipientTo: '{{Contact.Attribute.DE.Mobile}}'
+            recipientTo: resolveContactAttribute('Mobile')
           },
           {
             senderFrom: '919999999999'
@@ -68,6 +80,7 @@ module.exports = function configJSON(req) {
       }
     },
     configurationArguments: {
+      applicationExtensionKey: envActivityExtensionKey,
       save: { url: toAbsoluteUrl(origin, activityPath, 'save') },
       publish: { url: toAbsoluteUrl(origin, activityPath, 'publish') },
       validate: { url: toAbsoluteUrl(origin, activityPath, 'validate') },
@@ -154,6 +167,10 @@ function resolveActivityPath(req = {}) {
   }
 
   return DEFAULT_ACTIVITY_PATH;
+}
+
+function resolveContactAttribute(field) {
+  return `{{Contact.Attribute.${envContactAttributeKey}.${field}}}`;
 }
 
 function normalisePath(pathname) {

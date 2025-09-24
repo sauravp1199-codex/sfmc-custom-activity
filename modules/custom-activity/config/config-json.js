@@ -221,19 +221,16 @@ function resolveOrigin(req = {}) {
   }
 
   const forwardedProto = resolveForwardedProto(req.headers?.['x-forwarded-proto']);
-  const forwardedHostRaw = firstHeaderValue(req.headers?.['x-forwarded-host']);
-  const requestHostRaw = req.get?.('host') || req.headers?.host || '';
+  const forwardedHostCandidates = collectHeaderValues(req.headers?.['x-forwarded-host']);
+  const requestHostCandidates = collectHeaderValues(req.get?.('host') || req.headers?.host || '');
 
-  const forwardedHost = sanitizeExternalHost(forwardedHostRaw);
-  const requestHost = sanitizeExternalHost(requestHostRaw);
+  const hostCandidates = [
+    ...forwardedHostCandidates,
+    ...requestHostCandidates,
+  ];
 
-  const fallbackForwardedHost = sanitizeExternalHost(forwardedHostRaw, { allowProxyHosts: true });
-  const fallbackRequestHost = sanitizeExternalHost(requestHostRaw, { allowProxyHosts: true });
-
-  const host = forwardedHost
-    || requestHost
-    || fallbackForwardedHost
-    || fallbackRequestHost;
+  const host = resolvePrimaryExternalHost(hostCandidates)
+    || resolveExternalHostFallback(hostCandidates);
   const protocol = resolveProtocol({
     forwardedProto,
     requestProtocol: req.protocol,
@@ -411,11 +408,47 @@ function sanitizeExternalHost(candidate, { allowProxyHosts = false } = {}) {
     return '';
   }
 
-  if (!allowProxyHosts && isMarketingCloudProxyHost(hostname)) {
+  const canonicalHost = normaliseExternalHostname(hostname);
+  if (!canonicalHost) {
+    return '';
+  }
+
+  if (!allowProxyHosts && isMarketingCloudProxyHost(canonicalHost)) {
     return '';
   }
 
   return hostname;
+}
+
+function resolvePrimaryExternalHost(candidates = []) {
+  for (const candidate of candidates) {
+    const sanitized = sanitizeExternalHost(candidate);
+    if (sanitized) {
+      return sanitized;
+    }
+  }
+
+  return '';
+}
+
+function resolveExternalHostFallback(candidates = []) {
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+
+    const canonical = normaliseExternalHostname(candidate);
+    if (!canonical || isMarketingCloudProxyHost(canonical)) {
+      continue;
+    }
+
+    const sanitized = sanitizeExternalHost(candidate, { allowProxyHosts: true });
+    if (sanitized) {
+      return sanitized;
+    }
+  }
+
+  return '';
 }
 
 function normaliseProtocol(candidate) {
@@ -449,6 +482,35 @@ function firstHeaderValue(value) {
   }
 
   return value.split(',')[0].trim();
+}
+
+function collectHeaderValues(value) {
+  if (!value) {
+    return [];
+  }
+
+  const appendTokens = (acc, item) => {
+    if (item === undefined || item === null) {
+      return acc;
+    }
+
+    const tokens = String(item)
+      .split(',')
+      .map((token) => token.trim())
+      .filter(Boolean);
+
+    return acc.concat(tokens);
+  };
+
+  if (Array.isArray(value)) {
+    return value.reduce(appendTokens, []);
+  }
+
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  return appendTokens([], value);
 }
 
 function resolveForwardedProto(value) {
@@ -499,7 +561,7 @@ function isMarketingCloudProxyHost(host) {
     return false;
   }
 
-  const value = String(host).trim().toLowerCase();
+  const value = normaliseExternalHostname(host);
   if (!value) {
     return false;
   }
@@ -508,6 +570,32 @@ function isMarketingCloudProxyHost(host) {
     value.endsWith('marketingcloudapps.com') ||
     value.endsWith('marketingcloudsites.com') ||
     value.endsWith('marketingcloudsite.com');
+}
+
+function normaliseExternalHostname(host) {
+  if (!host) {
+    return '';
+  }
+
+  let value = String(host).trim();
+  if (!value) {
+    return '';
+  }
+
+  if (value.startsWith('[')) {
+    const closingIndex = value.indexOf(']');
+    value = closingIndex >= 0 ? value.slice(1, closingIndex) : value.slice(1);
+  }
+
+  if (value.includes(':')) {
+    if (value.includes('.')) {
+      value = value.split(':')[0];
+    } else if (!value.includes('::')) {
+      value = value.split(':')[0];
+    }
+  }
+
+  return value.trim().replace(/\.+$/, '').toLowerCase();
 }
 
 function isLocalHost(host) {

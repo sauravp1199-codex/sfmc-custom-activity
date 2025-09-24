@@ -192,6 +192,15 @@ function normaliseExtensionKey(value) {
   }
 
   const trimmed = String(value).trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (lower === 'null' || lower === 'undefined') {
+    return '';
+  }
+
   return trimmed;
 }
 
@@ -276,6 +285,11 @@ function normalisePath(pathname) {
 
   const trimmed = pathname.trim();
   if (!trimmed) {
+    return '';
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (lower === 'null' || lower === 'undefined') {
     return '';
   }
 
@@ -374,6 +388,11 @@ function sanitizeExternalHost(candidate) {
 
   const trimmed = String(candidate).trim();
   if (!trimmed) {
+    return '';
+  }
+
+  const lower = trimmed.toLowerCase();
+  if (lower === 'null' || lower === 'undefined') {
     return '';
   }
 

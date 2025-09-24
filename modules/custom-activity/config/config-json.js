@@ -221,10 +221,19 @@ function resolveOrigin(req = {}) {
   }
 
   const forwardedProto = resolveForwardedProto(req.headers?.['x-forwarded-proto']);
-  const forwardedHost = sanitizeExternalHost(firstHeaderValue(req.headers?.['x-forwarded-host']));
+  const forwardedHostRaw = firstHeaderValue(req.headers?.['x-forwarded-host']);
+  const requestHostRaw = req.get?.('host') || req.headers?.host || '';
 
-  const requestHost = sanitizeExternalHost(req.get?.('host') || req.headers?.host || '');
-  const host = forwardedHost || requestHost;
+  const forwardedHost = sanitizeExternalHost(forwardedHostRaw);
+  const requestHost = sanitizeExternalHost(requestHostRaw);
+
+  const fallbackForwardedHost = sanitizeExternalHost(forwardedHostRaw, { allowProxyHosts: true });
+  const fallbackRequestHost = sanitizeExternalHost(requestHostRaw, { allowProxyHosts: true });
+
+  const host = forwardedHost
+    || requestHost
+    || fallbackForwardedHost
+    || fallbackRequestHost;
   const protocol = resolveProtocol({
     forwardedProto,
     requestProtocol: req.protocol,
@@ -381,7 +390,7 @@ function resolveExternalProtocol(candidate, host) {
   return null;
 }
 
-function sanitizeExternalHost(candidate) {
+function sanitizeExternalHost(candidate, { allowProxyHosts = false } = {}) {
   if (!candidate) {
     return '';
   }
@@ -398,7 +407,11 @@ function sanitizeExternalHost(candidate) {
 
   const withoutProtocol = trimmed.replace(/^https?:\/\//i, '');
   const hostname = withoutProtocol.split('/')[0].trim();
-  if (!hostname || isMarketingCloudProxyHost(hostname)) {
+  if (!hostname) {
+    return '';
+  }
+
+  if (!allowProxyHosts && isMarketingCloudProxyHost(hostname)) {
     return '';
   }
 

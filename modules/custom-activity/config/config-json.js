@@ -10,7 +10,7 @@ const envActivityExtensionKey =
 const envContactAttributeKey =
   process.env.ACTIVITY_CONTACT_DE_KEY ??
   process.env.DATA_EXTENSION_KEY ??
-  '170E7DC6-4174-40F9-8166-8681DD916F9B';
+  'DE';
 const ENV_ORIGIN = envConfig?.origin;
 const ENV_PATH = envConfig?.path;
 

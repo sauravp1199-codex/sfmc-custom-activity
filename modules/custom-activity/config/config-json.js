@@ -432,12 +432,10 @@ function resolvePrimaryExternalHost(candidates = []) {
 }
 
 function resolveExternalHostFallback(candidates = []) {
+
   let proxyHost = '';
 
-  for (const candidate of candidates) {
-    if (!candidate) {
-      continue;
-    }
+
 
     const sanitized = sanitizeExternalHost(candidate, { allowProxyHosts: true });
     if (!sanitized) {
@@ -460,6 +458,7 @@ function resolveExternalHostFallback(candidates = []) {
   }
 
   return proxyHost;
+
 }
 
 function normaliseProtocol(candidate) {

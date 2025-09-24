@@ -7,7 +7,7 @@ const envActivityExtensionKey =
   process.env.ACTIVITY_EXTENSION_KEY ??
   process.env.ACTIVITY_PACKAGE_ID ??
   process.env.ACTIVITY_PACKAGE_KEY ??
-  null;
+  '';
 const envContactAttributeKey =
   process.env.ACTIVITY_CONTACT_DE_KEY ??
   process.env.DATA_EXTENSION_KEY ??
@@ -19,13 +19,16 @@ module.exports = function configJSON(req) {
   const origin = resolveOrigin(req);
   const activityPath = resolveActivityPath(req);
 
-  return {
-    key: envActivityExtensionKey,
+  const extensionKey = normaliseExtensionKey(envActivityExtensionKey);
+
+  const config = {
     workflowApiVersion: '1.1',
     type: 'REST',
     metaData: {
       icon: toAbsoluteUrl(origin, activityPath, 'images/icon.svg'),
-      category: 'customer'
+      category: 'customer',
+      isConfigured: false,
+      configOnDrop: true,
     },
     lang: {
       'en-US': {
@@ -72,25 +75,42 @@ module.exports = function configJSON(req) {
             metadataVersion: 'v1.0.9'
           }
         ],
-        outArguments: [],
+        outArguments: [
+          { upstreamStatus: null },
+          { messageId: null },
+        ],
         url: toAbsoluteUrl(origin, activityPath, 'execute'),
         timeout: 10000,
         retryCount: 3,
-        retryDelay: 1000
+        retryDelay: 1000,
+        verb: 'POST',
+        useJwt: true,
       }
     },
     configurationArguments: {
-      applicationExtensionKey: envActivityExtensionKey,
-      save: { url: toAbsoluteUrl(origin, activityPath, 'save') },
-      publish: { url: toAbsoluteUrl(origin, activityPath, 'publish') },
-      validate: { url: toAbsoluteUrl(origin, activityPath, 'validate') },
-      stop: { url: toAbsoluteUrl(origin, activityPath, 'stop') }
+      save: lifecycleConfig(origin, activityPath, 'save'),
+      publish: lifecycleConfig(origin, activityPath, 'publish'),
+      unpublish: lifecycleConfig(origin, activityPath, 'unpublish'),
+      validate: lifecycleConfig(origin, activityPath, 'validate'),
+      stop: lifecycleConfig(origin, activityPath, 'stop')
     },
     userInterfaces: {
       configInspector: {
         url: toAbsoluteUrl(origin, activityPath, 'index.html'),
         size: 'scm-lg' // inspector size
-      }
+      },
+      configModal: {
+        url: toAbsoluteUrl(origin, activityPath, 'index.html'),
+        height: 640,
+        width: 960,
+        fullscreen: false,
+      },
+    },
+    wizardSteps: [
+      { label: 'Message setup', key: 'message', active: true },
+    ],
+    copySettings: {
+      allowCopy: true,
     },
     schema: {
       arguments: {
@@ -124,7 +144,23 @@ module.exports = function configJSON(req) {
       }
     }
   };
+
+  if (extensionKey) {
+    config.key = extensionKey;
+    config.configurationArguments.applicationExtensionKey = extensionKey;
+  }
+
+  return config;
 };
+
+function normaliseExtensionKey(value) {
+  if (!value) {
+    return '';
+  }
+
+  const trimmed = String(value).trim();
+  return trimmed;
+}
 
 function resolveOrigin(req = {}) {
   if (ENV_ORIGIN) {
@@ -171,6 +207,13 @@ function resolveActivityPath(req = {}) {
 
 function resolveContactAttribute(field) {
   return `{{Contact.Attribute.${envContactAttributeKey}.${field}}}`;
+}
+
+function lifecycleConfig(origin, activityPath, endpoint) {
+  return {
+    url: toAbsoluteUrl(origin, activityPath, endpoint),
+    useJwt: true,
+  };
 }
 
 function normalisePath(pathname) {

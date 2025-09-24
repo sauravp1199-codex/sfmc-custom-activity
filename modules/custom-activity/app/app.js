@@ -119,6 +119,13 @@ module.exports = function(app, options = {}) {
     return res.status(200).json({ success: true });
   });
 
+  // Unpublish (journey deactivated before stop)
+  app.post(route('unpublish'), (req, res) => {
+    console.log('unpublish payload:', JSON.stringify(req.body));
+    withCrossOriginResourcePolicy(res);
+    return res.status(200).json({ success: true });
+  });
+
   // Stop (journey stopped)
   app.post(route('stop'), (req, res) => {
     console.log('stop payload:', JSON.stringify(req.body));

@@ -564,6 +564,11 @@ function normaliseMountPath(pathname) {
     return null;
   }
 
+  const lower = trimmed.toLowerCase();
+  if (lower === 'null' || lower === 'undefined') {
+    return null;
+  }
+
   if (trimmed === '/') {
     return '/';
   }

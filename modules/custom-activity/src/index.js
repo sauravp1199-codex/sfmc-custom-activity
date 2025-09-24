@@ -46,6 +46,9 @@ const previewDefaults = {
 
 let availableSchemaAttributes = [];
 let recipientHydrated = false;
+let requestedTokens = {};
+let requestedEndpoints = {};
+let currentStepKey = 'message';
 
 function enableDone(enabled) {
   $('done').disabled = !enabled;
@@ -234,6 +237,7 @@ function handleInputChange() {
   updateMessageCounter(values);
   updatePreview(values);
   enableDone(isValid(values));
+  updateButtonStates(values);
   if (!isHydrating) {
     connection.trigger('setActivityDirtyState', true);
   }
@@ -291,6 +295,7 @@ function onInitActivity(data) {
   const storedValid = hasInArgs ? isValid(inArgs) : false;
   const shouldEnableDone = hydratedValid || (activity?.metaData?.isConfigured && storedValid);
   enableDone(shouldEnableDone);
+  updateButtonStates(formState);
   isHydrating = false;
 }
 
@@ -432,12 +437,60 @@ function onDone() {
   connection.trigger('requestInspectorClose');
 }
 
+function onRequestedTokens(tokens) {
+  requestedTokens = tokens || {};
+}
+
+function onRequestedEndpoints(endpoints) {
+  requestedEndpoints = endpoints || {};
+}
+
+function onClickedNext() {
+  const values = gatherFormValues();
+  const valid = isValid(values);
+  updateButtonStates(values);
+  if (!valid) {
+    return;
+  }
+
+  onDone();
+}
+
+function onClickedBack() {
+  connection.trigger('gotoStep', currentStepKey);
+}
+
+function onGotoStep(step) {
+  if (!step) return;
+  currentStepKey = typeof step === 'string' ? step : step.key || currentStepKey;
+  updateButtonStates(formState);
+}
+
+function updateButtonStates(values = formState) {
+  const valid = isValid(values);
+  connection.trigger('updateButton', {
+    button: 'next',
+    enabled: valid,
+  });
+  connection.trigger('updateButton', {
+    button: 'done',
+    enabled: valid,
+  });
+}
+
 function init() {
   wireUI();
   connection.on('initActivity', onInitActivity);
   connection.on('requestedSchema', onRequestedSchema);
+  connection.on('requestedTokens', onRequestedTokens);
+  connection.on('requestedEndpoints', onRequestedEndpoints);
+  connection.on('clickedNext', onClickedNext);
+  connection.on('clickedBack', onClickedBack);
+  connection.on('gotoStep', onGotoStep);
   connection.trigger('ready');
   connection.trigger('requestSchema');
+  connection.trigger('requestTokens');
+  connection.trigger('requestEndpoints');
   connection.trigger('requestInteraction');
 }
 

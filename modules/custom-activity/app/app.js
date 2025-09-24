@@ -1,4 +1,3 @@
-// modules/custom-activity/app/app.js
 const express = require('express');
 const path = require('path');
 const axios = require('axios');
@@ -8,11 +7,10 @@ const {
   applyCrossOriginResourcePolicyHeader,
   withCrossOriginResourcePolicy,
 } = require('../../../lib/cross-origin-resource-policy');
-// const jwt = require('jsonwebtoken'); // if you plan to verify JB JWT
 
 const DEFAULT_ACTIVITY_PATH = '/modules/custom-activity';
 const DEFAULT_PROD_API_URL = 'https://sfmc.comsensetechnologies.com/api/message';
-const DEFAULT_DEV_API_URL = 'http://localhost:3000/api/message';
+const DEFAULT_DEV_API_URL = 'http://localhost:1111/api/message';
 
 const {
   NODE_ENV,
@@ -70,13 +68,11 @@ module.exports = function(app, options = {}) {
     });
   }
 
-  // UI (config iframe)
   app.get(route('index.html'), (req, res) => {
     withCrossOriginResourcePolicy(res);
     res.sendFile(path.join(publicDirectory, 'index.html'));
   });
 
-  // Dynamic config.json
   const configJSON = require('../config/config-json');
   const sendConfigJSON = (req, res) => {
     withCrossOriginResourcePolicy(res);
@@ -86,14 +82,12 @@ module.exports = function(app, options = {}) {
   app.get(route('config.json'), sendConfigJSON);
   app.get('/config.json', sendConfigJSON);
 
-  // Save (when user hits “Done” in inspector)
   app.post(route('save'), (req, res) => {
     console.log('save payload:', JSON.stringify(req.body));
     withCrossOriginResourcePolicy(res);
     return res.status(200).json({ success: true });
   });
 
-  // Validate (pre-publish)
   app.post(route('validate'), (req, res) => {
     console.log('validate payload:', JSON.stringify(req.body));
     const inArgs = collectInArguments(req.body);
@@ -111,27 +105,20 @@ module.exports = function(app, options = {}) {
     return res.status(200).json({ success: true, validationErrors: [] });
   });
 
-  // Publish (journey activated)
   app.post(route('publish'), (req, res) => {
     console.log('publish payload:', JSON.stringify(req.body));
     withCrossOriginResourcePolicy(res);
     return res.status(200).json({ success: true });
   });
 
-  // Stop (journey stopped)
   app.post(route('stop'), (req, res) => {
     console.log('stop payload:', JSON.stringify(req.body));
     withCrossOriginResourcePolicy(res);
     return res.status(200).json({ success: true });
   });
 
-  // Execute (runtime: contact reaches step)
   app.post(route('execute'), async (req, res) => {
     try {
-      // Optional: verify JWT (if you configure JB to send it)
-      // const token = req.headers['authorization']?.split(' ')[1];
-      // jwt.verify(token, process.env.JB_PUBLIC_KEY, { algorithms: ['RS256'] });
-
       const inArgs = collectInArguments(req.body);
       const validation = validateInArguments(inArgs);
       if (!validation.valid) {
@@ -151,10 +138,8 @@ module.exports = function(app, options = {}) {
         timeout: REQUEST_TIMEOUT,
       });
 
-      // Validate and format the API response
       const responseData = response.data;
 
-      // Build a standardized success response
       const out = {
         success: true,
         messageId: responseData.messageId || responseData.id,
@@ -199,9 +184,6 @@ module.exports = function(app, options = {}) {
     }
   });
 
-  // Lightweight mock for the downstream messaging API so the
-  // Journey Builder activity can be exercised end-to-end without the
-  // real upstream integration.
   app.post('/api/message', (req, res) => {
     const authError = ensureInboundAuthorization(req?.headers?.authorization);
     if (authError) {

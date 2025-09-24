@@ -1,4 +1,3 @@
-// modules/custom-activity/config/config-json.js
 const DEFAULT_ACTIVITY_PATH = '/modules/custom-activity';
 
 const envPublicUrl = process.env.ACTIVITY_PUBLIC_URL ?? process.env.PUBLIC_URL;
@@ -89,7 +88,7 @@ module.exports = function configJSON(req) {
     userInterfaces: {
       configInspector: {
         url: toAbsoluteUrl(origin, activityPath, 'index.html'),
-        size: 'scm-lg' // inspector size
+        size: 'scm-lg'
       }
     },
     schema: {
@@ -364,9 +363,9 @@ function isLocalHost(host) {
     hostname = closingIndex >= 0 ? hostname.slice(1, closingIndex) : hostname.slice(1);
   }
 
-  if (hostname.includes(':') && !hostname.includes('.')) {
-    // IPv6 without explicit port handled above; leave as-is for ::1 check
-  } else if (hostname.includes(':')) {
+  const hasColon = hostname.includes(':');
+  const ipv6WithoutPort = hasColon && !hostname.includes('.');
+  if (hasColon && !ipv6WithoutPort) {
     hostname = hostname.split(':')[0];
   }
 

@@ -1,8 +1,7 @@
 // modules/custom-activity/config/config-json.js
 const DEFAULT_ACTIVITY_PATH = '/modules/custom-activity';
 
-const envPublicUrl = process.env.ACTIVITY_PUBLIC_URL ?? process.env.PUBLIC_URL;
-const envConfig = parsePublicUrl(envPublicUrl);
+const envConfig = resolveEnvPublicConfig();
 const envActivityExtensionKey =
   process.env.ACTIVITY_EXTENSION_KEY ??
   process.env.ACTIVITY_PACKAGE_ID ??
@@ -153,6 +152,40 @@ module.exports = function configJSON(req) {
   return config;
 };
 
+function resolveEnvPublicConfig() {
+  const explicitUrl = parsePublicUrl(
+    process.env.ACTIVITY_PUBLIC_URL ?? process.env.PUBLIC_URL
+  );
+  if (explicitUrl) {
+    return explicitUrl;
+  }
+
+  const host = sanitizeExternalHost(
+    process.env.ACTIVITY_PUBLIC_HOST ?? process.env.PUBLIC_HOST
+  );
+  if (!host) {
+    return null;
+  }
+
+  const protocol =
+    resolveExternalProtocol(
+      process.env.ACTIVITY_PUBLIC_PROTOCOL ?? process.env.PUBLIC_PROTOCOL,
+      host
+    ) || (isLocalHost(host) ? 'http' : 'https');
+
+  const path =
+    normalisePath(
+      process.env.ACTIVITY_PUBLIC_PATH ??
+        process.env.PUBLIC_PATH ??
+        process.env.ACTIVITY_MOUNT_PATH
+    ) || DEFAULT_ACTIVITY_PATH;
+
+  return {
+    origin: { protocol, host },
+    path,
+  };
+}
+
 function normaliseExtensionKey(value) {
   if (!value) {
     return '';
@@ -167,19 +200,35 @@ function resolveOrigin(req = {}) {
     return ENV_ORIGIN;
   }
 
-  const forwardedProto = resolveForwardedProto(req.headers?.['x-forwarded-proto']);
-  const forwardedHost = firstHeaderValue(req.headers?.['x-forwarded-host']);
+  const headerOverride = parsePublicUrl(
+    firstHeaderValue(
+      req.headers?.['x-activity-public-url']
+        || req.headers?.['x-public-url']
+        || req.headers?.['x-external-url']
+    )
+  );
+  if (headerOverride?.origin?.host) {
+    return headerOverride.origin;
+  }
 
-  const host = forwardedHost || req.get?.('host') || req.headers?.host || '';
+  const forwardedProto = resolveForwardedProto(req.headers?.['x-forwarded-proto']);
+  const forwardedHost = sanitizeExternalHost(firstHeaderValue(req.headers?.['x-forwarded-host']));
+
+  const requestHost = sanitizeExternalHost(req.get?.('host') || req.headers?.host || '');
+  const host = forwardedHost || requestHost;
   const protocol = resolveProtocol({
     forwardedProto,
     requestProtocol: req.protocol,
     host,
   });
 
+  if (!host) {
+    return {};
+  }
+
   return {
     protocol,
-    host
+    host,
   };
 }
 
@@ -197,7 +246,11 @@ function resolveActivityPath(req = {}) {
     return fromRequest;
   }
 
-  const fromEnv = normalisePath(process.env.ACTIVITY_MOUNT_PATH);
+  const fromEnv = normalisePath(
+    process.env.ACTIVITY_PUBLIC_PATH
+      ?? process.env.PUBLIC_PATH
+      ?? process.env.ACTIVITY_MOUNT_PATH
+  );
   if (fromEnv) {
     return fromEnv;
   }
@@ -314,6 +367,25 @@ function resolveExternalProtocol(candidate, host) {
   return null;
 }
 
+function sanitizeExternalHost(candidate) {
+  if (!candidate) {
+    return '';
+  }
+
+  const trimmed = String(candidate).trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const withoutProtocol = trimmed.replace(/^https?:\/\//i, '');
+  const hostname = withoutProtocol.split('/')[0].trim();
+  if (!hostname || isMarketingCloudProxyHost(hostname)) {
+    return '';
+  }
+
+  return hostname;
+}
+
 function normaliseProtocol(candidate) {
   if (!candidate) {
     return null;
@@ -388,6 +460,22 @@ function resolveForwardedProto(value) {
   }
 
   return '';
+}
+
+function isMarketingCloudProxyHost(host) {
+  if (!host) {
+    return false;
+  }
+
+  const value = String(host).trim().toLowerCase();
+  if (!value) {
+    return false;
+  }
+
+  return value.includes('.exacttarget.') ||
+    value.endsWith('marketingcloudapps.com') ||
+    value.endsWith('marketingcloudsites.com') ||
+    value.endsWith('marketingcloudsite.com');
 }
 
 function isLocalHost(host) {

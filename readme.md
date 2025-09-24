@@ -95,6 +95,8 @@ MESSAGE_METADATA_VERSION=v1.0.9
 
 Set `ACTIVITY_PUBLIC_URL` when Journey Builder needs to see a specific HTTPS base URL (for example when running behind a reverse proxy or tunnelling a local instance). `ACTIVITY_MOUNT_PATH` controls where the custom activity is mounted inside Express – keep it aligned with the path portion of `ACTIVITY_PUBLIC_URL` (default: `/modules/custom-activity`).
 
+If your Marketing Cloud stack rewrites the `Host` header (common when requests originate from `*.exacttarget.cloud`), force the absolute URLs returned inside `config.json` by setting `ACTIVITY_PUBLIC_HOST`. You can also override the protocol/path via `ACTIVITY_PUBLIC_PROTOCOL` and `ACTIVITY_PUBLIC_PATH` when required.
+
 By default the service uses the production URL. Set `APP_ENV=development` (or `NODE_ENV=development`) when you specifically want to call a local mock. You can still provide a single `API_URL` to override both when needed.
 
 

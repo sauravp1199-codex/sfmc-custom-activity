@@ -432,23 +432,33 @@ function resolvePrimaryExternalHost(candidates = []) {
 }
 
 function resolveExternalHostFallback(candidates = []) {
-  for (const candidate of candidates) {
-    if (!candidate) {
-      continue;
-    }
 
-    const canonical = normaliseExternalHostname(candidate);
-    if (!canonical || isMarketingCloudProxyHost(canonical)) {
-      continue;
-    }
+  let proxyHost = '';
+
+
 
     const sanitized = sanitizeExternalHost(candidate, { allowProxyHosts: true });
-    if (sanitized) {
-      return sanitized;
+    if (!sanitized) {
+      continue;
     }
+
+    const canonical = normaliseExternalHostname(sanitized);
+    if (!canonical) {
+      continue;
+    }
+
+    if (isMarketingCloudProxyHost(canonical)) {
+      if (!proxyHost) {
+        proxyHost = sanitized;
+      }
+      continue;
+    }
+
+    return sanitized;
   }
 
-  return '';
+  return proxyHost;
+
 }
 
 function normaliseProtocol(candidate) {

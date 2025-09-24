@@ -73,7 +73,7 @@ PORT=1111
 
 ACTIVITY_PUBLIC_URL=https://sfmc.comsensetechnologies.com/modules/custom-activity
 ACTIVITY_MOUNT_PATH=/modules/custom-activity
-API_URL_DEV=http://localhost:3000/api/message
+API_URL_DEV=http://localhost:1111/api/message
 API_URL_PROD=https://sfmc.comsensetechnologies.com/api/message
 # API_URL=                        # optional explicit override for both envs
 API_TIMEOUT=10000

@@ -1,4 +1,3 @@
-// app.js
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
@@ -12,21 +11,16 @@ const DEFAULT_ACTIVITY_PATH = '/modules/custom-activity';
 
 const app = express();
 
-// Respect X-Forwarded-* headers when running behind a proxy/load balancer
-// so we can correctly determine the external protocol + host for config.json.
 app.set('trust proxy', true);
 
-// JSON parsing
 app.use(bodyParser.json());
 
-// Static “home” (optional landing)
 app.use('/', express.static(path.join(__dirname, 'public'), {
   setHeaders: applyCrossOriginResourcePolicyHeader,
 }));
 
 const activityMountPath = resolveActivityMountPath();
 
-// Mount the custom activity module
 require('./modules/custom-activity/app/app')(app, {
   rootDirectory: __dirname,
   mountPath: activityMountPath

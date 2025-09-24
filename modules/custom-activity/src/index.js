@@ -1,4 +1,3 @@
-// modules/custom-activity/src/index.js
 import Postmonger from 'postmonger';
 
 const connection = new Postmonger.Session();
@@ -105,8 +104,6 @@ function getSelectedTemplateLabel(select) {
     if (option?.text) return option.text;
   }
 
-  // Fallback if the value was hydrated programmatically and the select
-  // element has not yet updated its selectedIndex.
   const selectedOption = Array.from(options || []).find((option) => option.value === select.value);
   return selectedOption?.text || previewDefaults.templateLabel;
 }
@@ -216,9 +213,7 @@ function formatSendTiming(values) {
           hour: '2-digit',
           minute: '2-digit',
         })}`;
-      } catch (err) {
-        // Ignore locale issues and fall through to raw value
-      }
+      } catch {}
     }
 
     return `Scheduled: ${schedule}`;
@@ -413,7 +408,6 @@ function onDone() {
     },
   };
 
-  // Show success message
   const statusElement = document.createElement('div');
   statusElement.className = 'status-message success';
   statusElement.innerHTML = `
@@ -422,7 +416,6 @@ function onDone() {
   `;
   document.body.appendChild(statusElement);
 
-  // Remove status message after 3 seconds
   setTimeout(() => {
     statusElement.remove();
   }, 3000);

@@ -45,6 +45,7 @@ const previewDefaults = {
 
 let availableSchemaAttributes = [];
 let recipientHydrated = false;
+let schemaTokensHydrated = false;
 
 function enableDone(enabled) {
   $('done').disabled = !enabled;
@@ -314,6 +315,7 @@ function onRequestedSchema(payload) {
   availableSchemaAttributes = normalizeSchemaAttributes(payload?.schema);
   populateRecipientOptions();
   ensureRecipientDefault();
+  hydrateSchemaTokens();
 }
 
 function normalizeSchemaAttributes(schema = []) {
@@ -382,6 +384,74 @@ function formatAttributeToken(key) {
   return key.startsWith('{{') ? key : `{{${key}}}`;
 }
 
+function buildSchemaTokenMap() {
+  const map = new Map();
+
+  availableSchemaAttributes.forEach((attribute) => {
+    const key = attribute?.key;
+    if (!key) return;
+
+    const token = formatAttributeToken(key);
+    const fieldName = normalizeFieldName(key.split('.').slice(-1)[0]);
+    if (fieldName && token) {
+      if (!map.has(fieldName)) {
+        map.set(fieldName, token);
+      }
+    }
+  });
+
+  return map;
+}
+
+function normalizeFieldName(value = '') {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function replaceDefaultSchemaTokens(value) {
+  if (!value || typeof value !== 'string') return value;
+  if (!value.includes('Contact.Attribute.DE.')) return value;
+
+  const tokenMap = buildSchemaTokenMap();
+  if (tokenMap.size === 0) return value;
+
+  return value.replace(/{{\s*Contact\.Attribute\.DE\.([^{}]+)\s*}}/gi, (match, group) => {
+    const normalized = normalizeFieldName(group);
+    if (!normalized) return match;
+
+    const replacement = tokenMap.get(normalized);
+    return replacement || match;
+  });
+}
+
+function hydrateSchemaTokens() {
+  if (schemaTokensHydrated) return;
+
+  const messageInput = $('messageBody');
+  if (!messageInput) return;
+
+  const currentValue = messageInput.value || '';
+  const baseValue = currentValue || defaultMessageBody;
+  const updatedValue = replaceDefaultSchemaTokens(baseValue);
+
+  if (updatedValue !== currentValue) {
+    const previousHydrating = isHydrating;
+    isHydrating = true;
+    hydrateField('messageBody', updatedValue);
+    handleInputChange();
+    isHydrating = previousHydrating;
+  }
+
+  const updatedPreview = replaceDefaultSchemaTokens(previewDefaults.messageBody);
+  if (updatedPreview !== previewDefaults.messageBody) {
+    previewDefaults.messageBody = updatedPreview;
+    updatePreview({ ...formState, messageBody: updatedPreview });
+  }
+
+  schemaTokensHydrated = true;
+}
+
 function onDone() {
   const values = { ...formState };
   if (!isValid(values)) {
@@ -429,9 +499,38 @@ function init() {
   wireUI();
   connection.on('initActivity', onInitActivity);
   connection.on('requestedSchema', onRequestedSchema);
+  connection.on('onActivityValidationFailed', logJourneyValidationFailure);
+  connection.on('notifyActivityValidationFailed', logJourneyValidationFailure);
+  connection.on('onActivityValidationSucceeded', logJourneyValidationSuccess);
+  connection.on('notifyActivityValidationSucceeded', logJourneyValidationSuccess);
+  connection.on('validateActivity', (data) => {
+    console.log('[WhatsApp Message Activity] validateActivity event received.', data);
+  });
   connection.trigger('ready');
   connection.trigger('requestSchema');
   connection.trigger('requestInteraction');
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+function logJourneyValidationFailure(details) {
+  if (!details || typeof console === 'undefined' || !console?.error) return;
+
+  const errors = Array.isArray(details?.validationErrors)
+    ? details.validationErrors.filter(Boolean)
+    : [];
+
+  console.error('[WhatsApp Message Activity] Journey validation failed.', details);
+
+  if (errors.length > 0) {
+    errors.forEach((error) => {
+      console.error('[WhatsApp Message Activity] Validation error:', error);
+    });
+  }
+}
+
+function logJourneyValidationSuccess(details) {
+  if (typeof console === 'undefined' || !console?.info) return;
+
+  console.info('[WhatsApp Message Activity] Journey validation succeeded.', details);
+}
